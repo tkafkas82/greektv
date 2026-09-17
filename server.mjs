@@ -84,7 +84,12 @@ const server = createServer(async (req, res) => {
 
   if (pathname.startsWith("/api/")) return send(res, 404, "No such API route");
 
-  const file = await resolveStatic(pathname === "/" ? "/index.html" : pathname);
+  // /c/<slug> deep-links into a channel. The client reads the path and opens
+  // that channel's player, so every such URL serves the same document. Mirrored
+  // by the rewrite in vercel.json.
+  const deepLink = /^\/c\/[^/]+\/?$/.test(pathname);
+
+  const file = await resolveStatic(deepLink || pathname === "/" ? "/index.html" : pathname);
   if (!file) return send(res, 404, "Not found");
 
   send(res, 200, file.body, { "content-type": file.type, "cache-control": "no-store" });

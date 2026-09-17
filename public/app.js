@@ -1,6 +1,7 @@
 // Greek TV Dial - grid, search, guide overlay and player.
 
-import { CHANNELS, CATEGORIES } from "./channels.js";
+// Root-absolute so a /c/<slug> deep link doesn't resolve this to /c/channels.js.
+import { CHANNELS, CATEGORIES } from "/channels.js";
 
 const PLAYABLE = CHANNELS.filter((c) => c.stream).length;
 const EPG_REFRESH_MS = 5 * 60 * 1000;
@@ -381,6 +382,29 @@ let reel = [];
 
 const relayUrl = (url) => `/api/stream?u=${encodeURIComponent(url)}`;
 
+/* ---- routing ------------------------------------------------------------
+   /c/<slug> is the canonical deep link. #ch=<id> is kept working because it
+   was the first scheme shipped and may already be bookmarked. Both accept an
+   id or a slug. */
+const DEFAULT_EMBED_NOTE = embedNote.innerHTML;
+const BASE_TITLE = document.title;
+const channelPath = (ch) => `/c/${ch.slug}`;
+const channelLink = (ch) => `${location.origin}${channelPath(ch)}`;
+
+function lookup(key) {
+  const k = decodeURIComponent(String(key)).toLowerCase();
+  return CHANNELS.find((c) => c.slug === k) || CHANNELS.find((c) => String(c.id) === k) || null;
+}
+
+/** The channel the current URL points at, or null for the plain grid. */
+function channelFromUrl() {
+  const path = /^\/c\/([^/]+)\/?$/.exec(location.pathname);
+  if (path) return lookup(path[1]);
+  const hash = /^#ch=(.+)$/.exec(location.hash);
+  if (hash) return lookup(hash[1]);
+  return null;
+}
+
 function showNote(title, bodyHtml, { spin = false } = {}) {
   noteTitle.textContent = title;
   noteBody.innerHTML = bodyHtml;
@@ -446,13 +470,30 @@ function retryOrFail(reason) {
   failed(reason);
 }
 
+/**
+ * Public IPTV URLs rot, so a dead stream must not be a dead end. Fall back to
+ * the channel's own page - the same thing WEB channels use - so the viewer
+ * still gets picture without leaving the grid.
+ */
 function failed(reason) {
+  const ch = playing;
   teardown();
-  showNote(
-    "Η ροή δεν αναπαράγεται",
-    `${reason}. Οι δημόσιες ροές αλλάζουν συχνά διεύθυνση.<br>` +
-      `<a href="${playing.watchUrl}" target="_blank" rel="noopener">Άνοιγμα στο greektv.live ↗</a>`
+  if (!ch) return;
+
+  hideNote();
+  video.hidden = true;
+  frame.hidden = false;
+  embedNote.hidden = false;
+
+  embedNote.textContent = "";
+  embedNote.append(
+    `Η ανοιχτή ροή δεν αποκρίθηκε (${reason}), γι' αυτό φορτώθηκε η σελίδα του καναλιού. Πατήστε `
   );
+  const strong = document.createElement("b");
+  strong.textContent = "Δείτε Τώρα";
+  embedNote.append(strong, " εκεί για να ξεκινήσει.");
+
+  frame.src = ch.watchUrl;
 }
 
 function paintPlayerGuide(ch) {
@@ -527,8 +568,13 @@ function markCurrent() {
   document.getElementById("p-next-ch").disabled = at < 0 || at >= reel.length - 1;
 }
 
-/** Swap the player over to `ch` without closing it. */
-function loadChannel(ch) {
+/**
+ * Swap the player over to `ch` without closing it.
+ * @param {object} ch
+ * @param {{push?: boolean}} opts push=false when replaying a history entry,
+ *        so stepping back through channels doesn't append new ones.
+ */
+function loadChannel(ch, { push = true } = {}) {
   teardown();
   playing = ch;
   usedRelay = false;
@@ -543,9 +589,14 @@ function loadChannel(ch) {
   paintPlayerFav();
   markCurrent();
 
-  // Reflect the channel in the URL so it survives a reload and can be shared.
-  const hash = `#ch=${ch.id}`;
-  if (location.hash !== hash) history.replaceState(null, "", hash);
+  // Reflect the channel in the URL so it survives a reload, can be shared, and
+  // gives the browser's Back button something to step through.
+  document.title = `${ch.name} · Greek TV Dial`;
+  if (push && location.pathname !== channelPath(ch)) {
+    history.pushState({ ch: ch.id }, "", channelPath(ch));
+  }
+
+  embedNote.innerHTML = DEFAULT_EMBED_NOTE;
 
   if (ch.stream) {
     showNote("Σύνδεση…", "Φόρτωση ροής.", { spin: true });
@@ -582,25 +633,38 @@ function paintPlayerFav() {
   btn.querySelector("use").setAttribute("href", on ? "#i-star" : "#i-star-o");
 }
 
-function openPlayer(ch) {
+function openPlayer(ch, { push = true } = {}) {
   lastFocus = document.activeElement;
   playing = ch;
   player.setAttribute("open", "");
   document.body.style.overflow = "hidden";
   buildSwitcher();
-  loadChannel(ch);
+  loadChannel(ch, { push });
   document.getElementById("p-close").focus();
 }
 
-function closePlayer() {
+function closePlayer({ push = true } = {}) {
   teardown();
   player.removeAttribute("open");
   document.body.style.overflow = "";
   playing = null;
   hideNote();
-  if (location.hash) history.replaceState(null, "", location.pathname + location.search);
+  document.title = BASE_TITLE;
+  if (push && channelFromUrl()) history.pushState({}, "", "/");
   if (lastFocus && lastFocus.isConnected) lastFocus.focus();
 }
+
+// Back and Forward move through the channels visited, and back out of the
+// player entirely at the start. Nothing here pushes new entries.
+window.addEventListener("popstate", () => {
+  const ch = channelFromUrl();
+  if (!ch) {
+    if (player.hasAttribute("open")) closePlayer({ push: false });
+    return;
+  }
+  if (!player.hasAttribute("open")) openPlayer(ch, { push: false });
+  else if (!playing || playing.id !== ch.id) loadChannel(ch, { push: false });
+});
 
 document.getElementById("p-close").addEventListener("click", closePlayer);
 document.getElementById("p-prev").addEventListener("click", () => stepChannel(-1));
@@ -613,6 +677,44 @@ document.getElementById("p-fav").addEventListener("click", () => {
   paintPlayerFav();
   render();
 });
+
+// Copy the deep link. Falls back to a hidden textarea because the async
+// clipboard API needs a secure context, which plain http://localhost has but
+// an http:// LAN address would not.
+let copyTimer;
+document.getElementById("p-copy").addEventListener("click", async () => {
+  if (!playing) return;
+  const btn = document.getElementById("p-copy");
+  const link = channelLink(playing);
+  let ok = true;
+
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(link);
+    } else {
+      const ta = document.createElement("textarea");
+      ta.value = link;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      ok = document.execCommand("copy");
+      ta.remove();
+    }
+  } catch {
+    ok = false;
+  }
+
+  btn.querySelector("use").setAttribute("href", ok ? "#i-check" : "#i-link");
+  btn.title = ok ? "Ο σύνδεσμος αντιγράφηκε" : link;
+  clearTimeout(copyTimer);
+  copyTimer = setTimeout(() => {
+    btn.querySelector("use").setAttribute("href", "#i-link");
+    btn.title = "Αντιγραφή συνδέσμου";
+  }, 1600);
+});
+
 player.addEventListener("click", (ev) => {
   if (ev.target === player) closePlayer();
 });
@@ -725,12 +827,17 @@ buildRail();
 render();
 loadGuide();
 
-// A #ch=<id> hash opens straight into that channel, so a reload or a shared
-// link lands back on the same one.
-const fromHash = /^#ch=(\d+)$/.exec(location.hash);
-if (fromHash) {
-  const ch = CHANNELS.find((c) => c.id === Number(fromHash[1]));
-  if (ch) openPlayer(ch);
+// A /c/<slug> path (or a legacy #ch=<id> hash) opens straight into that
+// channel, so a reload or a shared link lands back on the same one.
+const deepLinked = channelFromUrl();
+if (deepLinked) {
+  // Canonicalise to /c/<slug> and shed any legacy hash, without adding an
+  // entry - Back should leave the site, not re-close the player.
+  history.replaceState({ ch: deepLinked.id }, "", channelPath(deepLinked));
+  openPlayer(deepLinked, { push: false });
+} else if (location.pathname.startsWith("/c/")) {
+  // A link to a channel that no longer exists shouldn't leave a dead URL up.
+  history.replaceState({}, "", "/");
 }
 
 setInterval(loadGuide, EPG_REFRESH_MS);
