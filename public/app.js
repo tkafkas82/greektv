@@ -436,7 +436,20 @@ function attach(url) {
   // ahead of hls.js leaves the element erroring out on a stream that would
   // otherwise have worked.
   if (window.Hls && window.Hls.isSupported()) {
-    hls = new window.Hls({ lowLatencyMode: false, enableWorker: true, backBufferLength: 30 });
+    // Short, shallow retries on purpose. A dead public URL should hand over to
+    // the embedded page in a few seconds; hls.js's defaults spend far longer
+    // retrying a host that is never going to answer.
+    hls = new window.Hls({
+      lowLatencyMode: false,
+      enableWorker: true,
+      backBufferLength: 30,
+      manifestLoadingTimeOut: 6000,
+      manifestLoadingMaxRetry: 1,
+      manifestLoadingRetryDelay: 500,
+      levelLoadingTimeOut: 6000,
+      levelLoadingMaxRetry: 1,
+      fragLoadingTimeOut: 12000,
+    });
     hls.loadSource(url);
     hls.attachMedia(video);
     hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
