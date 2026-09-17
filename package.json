@@ -1,0 +1,17 @@
+{
+  "name": "greektv-dial",
+  "version": "1.0.0",
+  "private": true,
+  "description": "All 251 Greek TV channels in one grid, with the current programme and in-app playback.",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node server.mjs",
+    "refresh:epg-map": "node scripts/refresh-epg-map.mjs"
+  },
+  "keywords": ["greek-tv", "epg", "hls", "iptv"],
+  "license": "MIT"
+}

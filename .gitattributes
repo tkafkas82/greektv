@@ -1,0 +1,6 @@
+# This repo deploys to Linux on Vercel, so normalise everything to LF in the
+# index regardless of what the working copy uses on Windows.
+* text=auto eol=lf
+*.png binary
+*.webp binary
+*.ico binary
