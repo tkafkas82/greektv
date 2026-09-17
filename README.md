@@ -72,6 +72,24 @@ Matching its 71 entries against the catalogue by name yields **65 channels** wit
 a playable HLS URL, marked `LIVE`. The other 186 fall back to the embedded page
 described above, so they still play without leaving the grid.
 
+**Public IPTV URLs rot, so the app learns which ones are dead.** A probe of all
+65 at the time of writing found **13 already gone** — Ant1 on `403`, both ERT
+Sports feeds timing out, four `404`s, two `500`s, two rejected certificate
+chains and two unreachable hosts. Rather than freeze that verdict into the
+catalogue (a browser may succeed where the probe didn't, and hosts recover), the
+behaviour is:
+
+- A stream that fails is recorded in `localStorage` under `greektv.deadStreams`.
+- That channel's card drops from `LIVE` to `WEB`, and the direct-stream count in
+  the header falls, so nothing promises video it can't deliver.
+- The next visit skips the connection attempt and loads the embedded page
+  immediately instead of making you wait for a timeout.
+- The embed note offers **Δοκιμή ροής ξανά** to force a retry.
+- Entries expire after 24 hours, and a stream that does play clears its own
+  entry, so a recovered host needs no intervention.
+
+The memory is per browser and never leaves it.
+
 Public IPTV URLs rot. When one dies the player says so and offers the
 greektv.live link rather than spinning forever.
 

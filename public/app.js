@@ -3,9 +3,12 @@
 // Root-absolute so a /c/<slug> deep link doesn't resolve this to /c/channels.js.
 import { CHANNELS, CATEGORIES } from "/channels.js";
 
-const PLAYABLE = CHANNELS.filter((c) => c.stream).length;
 const EPG_REFRESH_MS = 5 * 60 * 1000;
 const TICK_MS = 30 * 1000;
+// How long a stream stays written off after it fails. Public IPTV URLs come
+// back as often as they go away, so this is a memory with a short fuse, not a
+// permanent verdict.
+const DEAD_TTL_MS = 24 * 60 * 60 * 1000;
 
 /* ---------------------------------------------------------------- storage */
 // Any of these can throw (private windows, blocked site data), so every access
@@ -29,6 +32,52 @@ const store = {
 };
 
 const favs = new Set(Array.isArray(store.get("greektv.favs", [])) ? store.get("greektv.favs", []) : []);
+
+/* ---------------------------------------------------- dead-stream memory --
+   13 of the 65 shipped stream URLs were already dead when this was written,
+   and which ones will differ by the time you read it. Rather than freeze a
+   verdict into the catalogue, the app remembers what failed on this machine:
+   a channel whose stream dies goes straight to its embedded page next time,
+   and its card stops promising direct video. Entries expire after
+   DEAD_TTL_MS, and a stream that plays clears its own entry, so recovery
+   needs no intervention. */
+let dead = store.get("greektv.deadStreams", {});
+if (!dead || typeof dead !== "object" || Array.isArray(dead)) dead = {};
+
+function saveDead() {
+  store.set("greektv.deadStreams", dead);
+}
+
+/** Drop entries that have outlived the TTL, so those streams get another go. */
+function pruneDead() {
+  const now = Date.now();
+  let changed = false;
+  for (const [id, at] of Object.entries(dead)) {
+    if (typeof at !== "number" || now - at >= DEAD_TTL_MS) {
+      delete dead[id];
+      changed = true;
+    }
+  }
+  if (changed) saveDead();
+}
+pruneDead();
+
+const isDead = (id) => typeof dead[id] === "number" && Date.now() - dead[id] < DEAD_TTL_MS;
+
+function markDead(id) {
+  dead[id] = Date.now();
+  saveDead();
+}
+
+function clearDead(id) {
+  if (dead[id] === undefined) return;
+  delete dead[id];
+  saveDead();
+}
+
+/** True when we expect this channel to play video rather than an embed. */
+const playsDirect = (ch) => Boolean(ch.stream) && !isDead(ch.id);
+const directCount = () => CHANNELS.filter(playsDirect).length;
 
 /* ------------------------------------------------------------ text utils */
 // Greek keyboard -> Latin, so typing "σκαι" finds "Skai".
@@ -83,7 +132,7 @@ function visible() {
 
   return CHANNELS.filter((ch) => {
     if (state.category !== null && ch.cat !== state.category) return false;
-    if (state.onlyPlayable && !ch.stream) return false;
+    if (state.onlyPlayable && !playsDirect(ch)) return false;
     if (state.onlyGuide && !guide.has(ch.id)) return false;
     if (!terms.length) return true;
     return terms.some((t) => ch.searchKey.includes(t));
@@ -113,7 +162,7 @@ function card(ch) {
       `<span class="nm"></span>` +
       `<span class="sub">` +
         `<span class="cn"></span><span>${cat.label}</span>` +
-        `<span class="${ch.stream ? "live" : "web"}">${ch.stream ? "LIVE" : "WEB"}</span>` +
+        `<span class="${playsDirect(ch) ? "live" : "web"}">${playsDirect(ch) ? "LIVE" : "WEB"}</span>` +
       `</span>` +
       `<span class="now none">—</span>` +
     `</span>` +
@@ -212,6 +261,11 @@ function section(title, hue, list) {
 
 function render() {
   const list = visible();
+
+  // Counts derive from the same dead-stream memory the cards do, so they are
+  // refreshed here rather than by each caller - the two can't drift apart.
+  // Before the early return below, so an empty result still updates them.
+  refreshCounts();
 
   countEl.innerHTML = "";
   const strong = document.createElement("b");
@@ -454,6 +508,11 @@ function attach(url) {
     hls.attachMedia(video);
     hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
       hideNote();
+      // It answered, so forget any past failure and let the card say LIVE again.
+      if (playing && dead[playing.id] !== undefined) {
+        clearDead(playing.id);
+        render();
+      }
       video.play().catch(() => {});
     });
     hls.on(window.Hls.Events.ERROR, (_e, data) => {
@@ -493,20 +552,14 @@ function failed(reason) {
   teardown();
   if (!ch) return;
 
-  hideNote();
-  video.hidden = true;
-  frame.hidden = false;
-  embedNote.hidden = false;
+  // Remember it, so the next visit skips the wait and the card stops claiming
+  // direct video. render() repaints the LIVE/WEB tags.
+  if (ch.stream) {
+    markDead(ch.id);
+    render();
+  }
 
-  embedNote.textContent = "";
-  embedNote.append(
-    `Η ανοιχτή ροή δεν αποκρίθηκε (${reason}), γι' αυτό φορτώθηκε η σελίδα του καναλιού. Πατήστε `
-  );
-  const strong = document.createElement("b");
-  strong.textContent = "Δείτε Τώρα";
-  embedNote.append(strong, " εκεί για να ξεκινήσει.");
-
-  frame.src = ch.watchUrl;
+  showEmbed(ch, reason);
 }
 
 function paintPlayerGuide(ch) {
@@ -554,12 +607,12 @@ function buildSwitcher() {
     btn.innerHTML =
       '<span class="mini" aria-hidden="true"></span>' +
       '<span class="body"><span class="t"></span><span class="g"></span></span>' +
-      `<span class="tag${ch.stream ? " on" : ""}"></span>`;
+      `<span class="tag${playsDirect(ch) ? " on" : ""}"></span>`;
     btn.querySelector(".mini").textContent = ch.initials;
     btn.querySelector(".t").textContent = ch.name;
     btn.querySelector(".g").textContent =
       entry && entry.now ? entry.now.title : CATEGORIES[ch.cat].label;
-    btn.querySelector(".tag").textContent = ch.stream ? "LIVE" : "WEB";
+    btn.querySelector(".tag").textContent = playsDirect(ch) ? "LIVE" : "WEB";
     btn.addEventListener("click", () => loadChannel(ch));
     li.appendChild(btn);
     frag.appendChild(li);
@@ -609,9 +662,7 @@ function loadChannel(ch, { push = true } = {}) {
     history.pushState({ ch: ch.id }, "", channelPath(ch));
   }
 
-  embedNote.innerHTML = DEFAULT_EMBED_NOTE;
-
-  if (ch.stream) {
+  if (playsDirect(ch)) {
     showNote("Σύνδεση…", "Φόρτωση ροής.", { spin: true });
     // http streams can never load on an https page - go straight to the relay.
     const mustRelay = ch.stream.startsWith("http://") && location.protocol === "https:";
@@ -620,12 +671,51 @@ function loadChannel(ch, { push = true } = {}) {
     return;
   }
 
-  // No open stream: show the channel's own greektv.live page in place, which
-  // keeps the grid one click away instead of navigating the tab away.
+  // Either the channel never had an open stream, or one failed here recently
+  // and we remembered. Straight to the embedded page - no waiting on a host
+  // we already know doesn't answer.
+  showEmbed(ch, ch.stream ? "remembered" : null);
+}
+
+/**
+ * Put the channel's own greektv.live page in the stage, which keeps the grid
+ * one click away instead of navigating the tab off.
+ * @param {object} ch
+ * @param {string|null} reason null when the channel simply has no open stream,
+ *        "remembered" when one failed here before, otherwise the hls.js detail.
+ */
+function showEmbed(ch, reason) {
   hideNote();
   video.hidden = true;
   frame.hidden = false;
   embedNote.hidden = false;
+
+  if (reason === null) {
+    embedNote.innerHTML = DEFAULT_EMBED_NOTE;
+  } else {
+    embedNote.textContent = "";
+    embedNote.append(
+      reason === "remembered"
+        ? "Η ροή αυτού του καναλιού απέτυχε πρόσφατα, γι' αυτό φορτώθηκε κατευθείαν η σελίδα του. Πατήστε "
+        : `Η ροή δεν αποκρίθηκε (${reason}), γι' αυτό φορτώθηκε η σελίδα του καναλιού. Πατήστε `
+    );
+    const strong = document.createElement("b");
+    strong.textContent = "Δείτε Τώρα";
+    embedNote.append(strong, " εκεί για να ξεκινήσει. ");
+
+    // Lets a recovered stream be picked up without waiting out the TTL.
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.className = "retry";
+    retry.textContent = "Δοκιμή ροής ξανά";
+    retry.addEventListener("click", () => {
+      clearDead(ch.id);
+      render();
+      loadChannel(ch, { push: false });
+    });
+    embedNote.append(retry);
+  }
+
   frame.src = ch.watchUrl;
 }
 
@@ -827,14 +917,19 @@ document.getElementById("zap").addEventListener("click", () => {
 });
 
 /* ------------------------------------------------------------------- boot */
-const note1 =
-  `Όλα τα κανάλια ανοίγουν στη σελίδα. ${PLAYABLE} παίζουν απευθείας· ` +
-  `τα υπόλοιπα φορτώνουν τη σελίδα τους από το ` +
-  `<a href="https://www.greektv.live/tv" target="_blank" rel="noopener">greektv.live</a> ενσωματωμένη.`;
-document.getElementById("rail-note").innerHTML = note1;
-document.getElementById("rail-note-mobile").innerHTML = note1;
-document.getElementById("tagline").textContent =
-  `${CHANNELS.length} κανάλια · ${PLAYABLE} με απευθείας ροή`;
+/** The direct-stream count moves as streams die and recover, so it's derived. */
+function refreshCounts() {
+  const n = directCount();
+  const note =
+    `Όλα τα κανάλια ανοίγουν στη σελίδα. ${n} παίζουν απευθείας· ` +
+    `τα υπόλοιπα φορτώνουν τη σελίδα τους από το ` +
+    `<a href="https://www.greektv.live/tv" target="_blank" rel="noopener">greektv.live</a> ενσωματωμένη.`;
+  document.getElementById("rail-note").innerHTML = note;
+  document.getElementById("rail-note-mobile").innerHTML = note;
+  document.getElementById("tagline").textContent =
+    `${CHANNELS.length} κανάλια · ${n} με απευθείας ροή`;
+}
+refreshCounts();
 
 buildRail();
 render();

@@ -361,6 +361,13 @@ button{font:inherit; color:inherit}
   border-top:1px dashed var(--line); padding-top:7px;
 }
 .embed-note b{color:var(--ink-2)}
+.embed-note .retry{
+  display:inline-block; margin-inline-start:2px; padding:1px 7px;
+  background:var(--surface); border:1px solid var(--line); border-radius:4px;
+  color:var(--accent); font-size:11px; font-weight:600; cursor:pointer;
+}
+.embed-note .retry:hover{border-color:var(--accent)}
+.embed-note .retry:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
 .stage .note{
   position:absolute; inset:0; display:none; place-items:center; text-align:center;
   padding:22px; color:#C9D3E2; font-size:13px; line-height:1.55;
