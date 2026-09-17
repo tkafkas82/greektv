@@ -41,6 +41,24 @@ Optionally set `STREAM_PROXY_SECRET` (see [Environment](#environment)).
 
 This is the part worth reading before you judge the feature set.
 
+### Everything stays on one page
+
+Clicking any channel opens it in an overlay player with a channel rail down the
+side, so switching channels never leaves the grid. The rail walks whatever the
+grid is currently showing, so a search or a category filter carries into the
+player. `←`/`→` zap through it, the `‹ ›` buttons do the same, and the open
+channel is reflected in the URL as `#ch=<id>` so a reload or a shared link comes
+back to it. The only thing that navigates away is the small ↗ on each card.
+
+Channels split into two kinds, marked `LIVE` and `WEB` on every card:
+
+- **`LIVE` (65)** — an open HLS stream, played directly in the overlay.
+- **`WEB` (186)** — no open stream, so the channel's own greektv.live page loads
+  in an iframe inside the same overlay. Their page permits framing (it sends no
+  `X-Frame-Options` and no CSP `frame-ancestors`), and their ads and analytics
+  still load inside the frame. You may need to press **Δείτε Τώρα** within it to
+  start, which the player says on screen.
+
 ### Playback: 65 of 251 channels
 
 greektv.live does **not** expose its stream URLs. Its channel pages ship
@@ -51,9 +69,8 @@ embedding the streams. Those streams are therefore not used here at all.
 Instead, streams come from the **openly published
 [iptv-org Greek playlist](https://iptv-org.github.io/iptv/countries/gr.m3u)**.
 Matching its 71 entries against the catalogue by name yields **65 channels** with
-a playable HLS URL. Those cards get a ▶ button and open in the in-app player.
-The other 186 are directory-only and open on greektv.live, which is where their
-streams live.
+a playable HLS URL, marked `LIVE`. The other 186 fall back to the embedded page
+described above, so they still play without leaving the grid.
 
 Public IPTV URLs rot. When one dies the player says so and offers the
 greektv.live link rather than spinning forever.
@@ -179,23 +196,27 @@ playlist and re-match the `stream` column in `public/channels.js`.
 
 ## Interface
 
+- Click anywhere on a card to watch it in the overlay. The ↗ is the only control
+  that opens greektv.live in a new tab.
+- `←` `→` (or `↑` `↓`, or the `‹ ›` buttons) change channel with the player open.
 - `/` or `Ctrl`/`⌘`+`K` — search. Accent-insensitive, and transliterates Greek
   to Latin, so `σκαι` finds *Skai*.
 - **Ζάπινγκ** — a random channel from whatever is currently filtered, preferring
-  one that plays in-app.
-- ★ — favourites, pinned to their own band. Kept in `localStorage`, per browser.
+  one with an open stream. Swaps the open player rather than reopening it.
+- ★ — favourites, pinned to their own band, and also on the player header. Kept
+  in `localStorage`, per browser.
 - Sort by category, Α–Ω, or channel number; filter to only channels that play or
   only channels with a guide.
-- `Esc` closes the player.
+- `Esc` closes the player. `#ch=<id>` in the URL opens straight into a channel.
 
 Renders in the viewer's light or dark theme. Works down to phone width.
 
 ## Credits and scope
 
 - Directory data (names, ids, categories) was collected from the public category
-  pages of **[greektv.live](https://www.greektv.live/tv)**, which is also where
-  channels without an open stream are opened. Their streams and EPG are
-  deliberately protected and are not used.
+  pages of **[greektv.live](https://www.greektv.live/tv)**, whose channel pages
+  are also what the `WEB` channels embed. Their streams and EPG are deliberately
+  protected and are not used.
 - Streams: **[iptv-org](https://github.com/iptv-org/iptv)**.
 - Guide: **[Digea](https://www.digea.gr)**.
 

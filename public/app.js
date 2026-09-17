@@ -100,36 +100,41 @@ function card(ch) {
   el.style.setProperty("--h", cat.hue);
   el.dataset.id = ch.id;
 
-  const plateTag = ch.stream ? "button" : "span";
+  // The whole card opens the in-page player. The small ↗ is the only way out
+  // to greektv.live, so an ordinary click never navigates the tab away.
   el.innerHTML =
-    `<${plateTag} class="plate"${ch.stream ? ' type="button"' : ' aria-hidden="true"'}>` +
+    `<button class="hit" type="button"></button>` +
+    `<span class="plate" aria-hidden="true">` +
       `<span class="ini"></span>` +
-      (ch.stream
-        ? `<span class="play" aria-hidden="true"><svg><use href="#i-play"/></svg></span>`
-        : "") +
-    `</${plateTag}>` +
+      `<span class="play"><svg><use href="#i-play"/></svg></span>` +
+    `</span>` +
     `<span class="info">` +
-      `<a class="nm" target="_blank" rel="noopener"></a>` +
+      `<span class="nm"></span>` +
       `<span class="sub">` +
         `<span class="cn"></span><span>${cat.label}</span>` +
-        (ch.stream ? `<span class="live">LIVE</span>` : "") +
+        `<span class="${ch.stream ? "live" : "web"}">${ch.stream ? "LIVE" : "WEB"}</span>` +
       `</span>` +
       `<span class="now none">—</span>` +
     `</span>` +
-    `<button class="fav" type="button"><svg><use href="#i-star-o"/></svg></button>` +
+    `<span class="acts">` +
+      `<a class="ext" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-ext"/></svg></a>` +
+      `<button class="fav" type="button"><svg><use href="#i-star-o"/></svg></button>` +
+    `</span>` +
     `<span class="prog" hidden><span class="track"><span class="fill"></span></span><span class="times"></span></span>`;
 
   el.querySelector(".ini").textContent = ch.initials;
-  const link = el.querySelector(".nm");
-  link.textContent = ch.name;
-  link.href = ch.watchUrl;
+  el.querySelector(".nm").textContent = ch.name;
   el.querySelector(".cn").textContent = String(ch.id).padStart(3, "0");
 
-  if (ch.stream) {
-    const plate = el.querySelector("button.plate");
-    plate.setAttribute("aria-label", `Αναπαραγωγή ${ch.name}`);
-    plate.addEventListener("click", () => openPlayer(ch));
-  }
+  const hit = el.querySelector(".hit");
+  hit.setAttribute("aria-label", `Παρακολούθηση ${ch.name}`);
+  hit.addEventListener("click", () => (player.hasAttribute("open") ? loadChannel(ch) : openPlayer(ch)));
+
+  const ext = el.querySelector(".ext");
+  ext.href = ch.watchUrl;
+  ext.setAttribute("aria-label", `${ch.name} στο greektv.live`);
+  ext.title = "Άνοιγμα στο greektv.live";
+  ext.addEventListener("click", (ev) => ev.stopPropagation());
 
   const star = el.querySelector(".fav");
   paintFav(star, favs.has(ch.id));
@@ -141,6 +146,7 @@ function card(ch) {
     else favs.delete(ch.id);
     store.set("greektv.favs", [...favs]);
     paintFav(star, on);
+    if (playing && playing.id === ch.id) paintPlayerFav();
     if (state.sort === "cat") render();
   });
 
@@ -244,6 +250,9 @@ function render() {
 
   out.innerHTML = "";
   out.appendChild(frag);
+
+  // Keep the player's reel in step with what the grid is showing.
+  if (player.hasAttribute("open")) buildSwitcher();
 }
 
 /** Refresh just the guide lines, without rebuilding the grid. */
@@ -253,6 +262,15 @@ function repaintGuide() {
     if (ch) paintNow(el, ch);
   }
   if (playing) paintPlayerGuide(playing);
+
+  // The switcher shows each channel's current programme too.
+  for (const btn of switchList.querySelectorAll(".sw")) {
+    const ch = CHANNELS.find((c) => c.id === Number(btn.dataset.id));
+    if (!ch) continue;
+    const entry = guide.get(ch.id);
+    btn.querySelector(".g").textContent =
+      entry && entry.now ? entry.now.title : CATEGORIES[ch.cat].label;
+  }
 }
 
 /* ------------------------------------------------------------------- rail */
@@ -345,15 +363,21 @@ async function loadGuide() {
 /* ----------------------------------------------------------------- player */
 const player = document.getElementById("player");
 const video = document.getElementById("p-video");
+const frame = document.getElementById("p-frame");
 const note = document.getElementById("p-note");
 const noteTitle = document.getElementById("p-note-title");
 const noteBody = document.getElementById("p-note-body");
 const spinner = document.getElementById("p-spin");
+const embedNote = document.getElementById("p-embed-note");
+const switchList = document.getElementById("p-switch-list");
+const switchCount = document.getElementById("p-switch-count");
 
 let hls = null;
 let playing = null;
 let usedRelay = false;
 let lastFocus = null;
+/** The channels the prev/next buttons and the switcher walk through. */
+let reel = [];
 
 const relayUrl = (url) => `/api/stream?u=${encodeURIComponent(url)}`;
 
@@ -372,6 +396,12 @@ function teardown() {
   }
   video.removeAttribute("src");
   video.load();
+  // Blanking the iframe matters: an embedded channel page left with its src
+  // intact keeps playing audio behind the next channel.
+  if (frame.getAttribute("src")) frame.removeAttribute("src");
+  frame.hidden = true;
+  video.hidden = false;
+  embedNote.hidden = true;
 }
 
 function attach(url) {
@@ -449,10 +479,59 @@ function paintPlayerGuide(ch) {
   }
 }
 
-function openPlayer(ch) {
+/**
+ * The switcher walks whatever the grid is currently showing, so a search or a
+ * category filter carries into the player instead of being forgotten there.
+ */
+function buildSwitcher() {
+  reel = visible();
+  switchCount.textContent = `Κανάλια · ${reel.length}`;
+
+  const frag = document.createDocumentFragment();
+  for (const ch of reel) {
+    const entry = guide.get(ch.id);
+    const li = document.createElement("li");
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "sw";
+    btn.style.setProperty("--h", CATEGORIES[ch.cat].hue);
+    btn.dataset.id = ch.id;
+    btn.setAttribute("aria-current", playing && playing.id === ch.id ? "true" : "false");
+    btn.innerHTML =
+      '<span class="mini" aria-hidden="true"></span>' +
+      '<span class="body"><span class="t"></span><span class="g"></span></span>' +
+      `<span class="tag${ch.stream ? " on" : ""}"></span>`;
+    btn.querySelector(".mini").textContent = ch.initials;
+    btn.querySelector(".t").textContent = ch.name;
+    btn.querySelector(".g").textContent =
+      entry && entry.now ? entry.now.title : CATEGORIES[ch.cat].label;
+    btn.querySelector(".tag").textContent = ch.stream ? "LIVE" : "WEB";
+    btn.addEventListener("click", () => loadChannel(ch));
+    li.appendChild(btn);
+    frag.appendChild(li);
+  }
+
+  switchList.innerHTML = "";
+  switchList.appendChild(frag);
+  markCurrent();
+}
+
+function markCurrent() {
+  for (const btn of switchList.querySelectorAll(".sw")) {
+    const on = playing && Number(btn.dataset.id) === playing.id;
+    btn.setAttribute("aria-current", on ? "true" : "false");
+    if (on) btn.scrollIntoView({ block: "nearest" });
+  }
+  const at = playing ? reel.findIndex((c) => c.id === playing.id) : -1;
+  document.getElementById("p-prev").disabled = at <= 0;
+  document.getElementById("p-next-ch").disabled = at < 0 || at >= reel.length - 1;
+}
+
+/** Swap the player over to `ch` without closing it. */
+function loadChannel(ch) {
+  teardown();
   playing = ch;
   usedRelay = false;
-  lastFocus = document.activeElement;
 
   const cat = CATEGORIES[ch.cat];
   player.style.setProperty("--h", cat.hue);
@@ -461,16 +540,55 @@ function openPlayer(ch) {
   document.getElementById("p-meta").textContent = `${String(ch.id).padStart(3, "0")} · ${cat.label}`;
   document.getElementById("p-out").href = ch.watchUrl;
   paintPlayerGuide(ch);
+  paintPlayerFav();
+  markCurrent();
 
+  // Reflect the channel in the URL so it survives a reload and can be shared.
+  const hash = `#ch=${ch.id}`;
+  if (location.hash !== hash) history.replaceState(null, "", hash);
+
+  if (ch.stream) {
+    showNote("Σύνδεση…", "Φόρτωση ροής.", { spin: true });
+    // http streams can never load on an https page - go straight to the relay.
+    const mustRelay = ch.stream.startsWith("http://") && location.protocol === "https:";
+    if (mustRelay) usedRelay = true;
+    attach(mustRelay ? relayUrl(ch.stream) : ch.stream);
+    return;
+  }
+
+  // No open stream: show the channel's own greektv.live page in place, which
+  // keeps the grid one click away instead of navigating the tab away.
+  hideNote();
+  video.hidden = true;
+  frame.hidden = false;
+  embedNote.hidden = false;
+  frame.src = ch.watchUrl;
+}
+
+function stepChannel(delta) {
+  if (!playing || !reel.length) return;
+  const at = reel.findIndex((c) => c.id === playing.id);
+  if (at < 0) return;
+  const next = reel[at + delta];
+  if (next) loadChannel(next);
+}
+
+function paintPlayerFav() {
+  if (!playing) return;
+  const btn = document.getElementById("p-fav");
+  const on = favs.has(playing.id);
+  btn.setAttribute("aria-pressed", on ? "true" : "false");
+  btn.setAttribute("aria-label", on ? "Αφαίρεση από τα αγαπημένα" : "Προσθήκη στα αγαπημένα");
+  btn.querySelector("use").setAttribute("href", on ? "#i-star" : "#i-star-o");
+}
+
+function openPlayer(ch) {
+  lastFocus = document.activeElement;
+  playing = ch;
   player.setAttribute("open", "");
   document.body.style.overflow = "hidden";
-  showNote("Σύνδεση…", "Φόρτωση ροής.", { spin: true });
-
-  // http streams can never load on an https page - go straight to the relay.
-  const direct = ch.stream.startsWith("http://") && location.protocol === "https:";
-  if (direct) usedRelay = true;
-  attach(direct ? relayUrl(ch.stream) : ch.stream);
-
+  buildSwitcher();
+  loadChannel(ch);
   document.getElementById("p-close").focus();
 }
 
@@ -480,10 +598,21 @@ function closePlayer() {
   document.body.style.overflow = "";
   playing = null;
   hideNote();
+  if (location.hash) history.replaceState(null, "", location.pathname + location.search);
   if (lastFocus && lastFocus.isConnected) lastFocus.focus();
 }
 
 document.getElementById("p-close").addEventListener("click", closePlayer);
+document.getElementById("p-prev").addEventListener("click", () => stepChannel(-1));
+document.getElementById("p-next-ch").addEventListener("click", () => stepChannel(1));
+document.getElementById("p-fav").addEventListener("click", () => {
+  if (!playing) return;
+  if (favs.has(playing.id)) favs.delete(playing.id);
+  else favs.add(playing.id);
+  store.set("greektv.favs", [...favs]);
+  paintPlayerFav();
+  render();
+});
 player.addEventListener("click", (ev) => {
   if (ev.target === player) closePlayer();
 });
@@ -520,11 +649,26 @@ input.addEventListener("keydown", (ev) => {
 });
 
 document.addEventListener("keydown", (ev) => {
-  if (ev.key === "Escape" && player.hasAttribute("open")) {
-    closePlayer();
+  if (player.hasAttribute("open")) {
+    if (ev.key === "Escape") {
+      closePlayer();
+      return;
+    }
+    // Zap through the reel. Skipped while focus is inside the embedded page,
+    // which owns its own key handling.
+    if (ev.key === "ArrowLeft" || ev.key === "ArrowUp") {
+      ev.preventDefault();
+      stepChannel(-1);
+      return;
+    }
+    if (ev.key === "ArrowRight" || ev.key === "ArrowDown") {
+      ev.preventDefault();
+      stepChannel(1);
+      return;
+    }
     return;
   }
-  if (ev.target === input || player.hasAttribute("open")) return;
+  if (ev.target === input) return;
   if (ev.key === "/" && !ev.metaKey && !ev.ctrlKey) {
     ev.preventDefault();
     input.focus();
@@ -555,32 +699,39 @@ document.getElementById("only-guide").addEventListener("change", (ev) => {
   render();
 });
 
-// Zapping: a random channel from whatever is on screen. Prefer one that plays
-// in-app, so the button does something useful rather than opening a new tab.
+// Zapping: a random channel from whatever is on screen, preferring one with an
+// open stream so it lands on video rather than an embedded page.
 document.getElementById("zap").addEventListener("click", () => {
   const pool = visible();
   if (!pool.length) return;
   const streamable = pool.filter((ch) => ch.stream);
-  if (streamable.length) {
-    openPlayer(streamable[Math.floor(Math.random() * streamable.length)]);
-    return;
-  }
-  const pick = pool[Math.floor(Math.random() * pool.length)];
-  window.open(pick.watchUrl, "_blank", "noopener");
+  const from = streamable.length ? streamable : pool;
+  const pick = from[Math.floor(Math.random() * from.length)];
+  if (player.hasAttribute("open")) loadChannel(pick);
+  else openPlayer(pick);
 });
 
 /* ------------------------------------------------------------------- boot */
 const note1 =
-  `Αναπαραγωγή εντός εφαρμογής για ${PLAYABLE} από ${CHANNELS.length} κανάλια· ` +
-  `τα υπόλοιπα ανοίγουν στο <a href="https://www.greektv.live/tv" target="_blank" rel="noopener">greektv.live</a>.`;
+  `Όλα τα κανάλια ανοίγουν στη σελίδα. ${PLAYABLE} παίζουν απευθείας· ` +
+  `τα υπόλοιπα φορτώνουν τη σελίδα τους από το ` +
+  `<a href="https://www.greektv.live/tv" target="_blank" rel="noopener">greektv.live</a> ενσωματωμένη.`;
 document.getElementById("rail-note").innerHTML = note1;
 document.getElementById("rail-note-mobile").innerHTML = note1;
 document.getElementById("tagline").textContent =
-  `${CHANNELS.length} κανάλια · ${PLAYABLE} με αναπαραγωγή`;
+  `${CHANNELS.length} κανάλια · ${PLAYABLE} με απευθείας ροή`;
 
 buildRail();
 render();
 loadGuide();
+
+// A #ch=<id> hash opens straight into that channel, so a reload or a shared
+// link lands back on the same one.
+const fromHash = /^#ch=(\d+)$/.exec(location.hash);
+if (fromHash) {
+  const ch = CHANNELS.find((c) => c.id === Number(fromHash[1]));
+  if (ch) openPlayer(ch);
+}
 
 setInterval(loadGuide, EPG_REFRESH_MS);
 // Progress bars creep forward between guide fetches.
