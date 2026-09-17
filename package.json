@@ -10,7 +10,8 @@
   "scripts": {
     "start": "node server.mjs",
     "dev": "node server.mjs",
-    "refresh:epg-map": "node scripts/refresh-epg-map.mjs"
+    "refresh:epg-map": "node scripts/refresh-epg-map.mjs",
+    "export:m3u": "node scripts/export-m3u.mjs --check"
   },
   "keywords": ["greek-tv", "epg", "hls", "iptv"],
   "license": "MIT"

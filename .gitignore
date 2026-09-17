@@ -1,5 +1,8 @@
 node_modules/
 .vercel/
+# Generated on demand by scripts/export-m3u.mjs - the URLs go stale, so a
+# committed copy would only ever be wrong.
+*.m3u
 .env
 .env.local
 .DS_Store

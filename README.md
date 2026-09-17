@@ -206,7 +206,27 @@ Both optional; see `.env.example`.
 
 ```bash
 npm run refresh:epg-map    # re-pull Digea's channel list and rebuild lib/epg-map.js
+npm run export:m3u         # write greektv.m3u for VLC, probing each URL first
 ```
+
+### Playlist for VLC
+
+`scripts/export-m3u.mjs` writes the channels that have an open stream as an M3U,
+named after each channel as this catalogue names it and grouped by category so
+VLC's playlist sidebar is navigable. Each entry keeps its iptv-org `tvg-id`, so
+an XMLTV guide can be matched to it later.
+
+```bash
+node scripts/export-m3u.mjs --check            # verified only (recommended)
+node scripts/export-m3u.mjs                    # all 65, unverified
+node scripts/export-m3u.mjs --out other.m3u
+```
+
+`--check` probes every URL first and leaves out the ones that don't answer. Be
+aware it is stricter than VLC: a rejected certificate chain fails here but often
+plays fine in VLC, so the unverified export is worth trying for anything
+`--check` drops. `.m3u` files are gitignored — the URLs go stale, so a committed
+copy would only ever be wrong.
 
 It prints any Digea channel it could not place so you can extend the `MANUAL`
 table at the top of the script. To refresh streams, re-download the iptv-org
