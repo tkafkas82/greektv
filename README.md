@@ -217,10 +217,18 @@ VLC's playlist sidebar is navigable. Each entry keeps its iptv-org `tvg-id`, so
 an XMLTV guide can be matched to it later.
 
 ```bash
-node scripts/export-m3u.mjs --check            # verified only (recommended)
-node scripts/export-m3u.mjs                    # all 65, unverified
-node scripts/export-m3u.mjs --out other.m3u
+node scripts/export-m3u.mjs --check                   # one file, verified
+node scripts/export-m3u.mjs                           # one file, all 65
+node scripts/export-m3u.mjs --check --split category  # m3u/categories/*.m3u
+node scripts/export-m3u.mjs --check --split channel   # m3u/channels/*.m3u
+node scripts/export-m3u.mjs --out other.m3u           # where --split one writes
+node scripts/export-m3u.mjs --dir path                # where the others write
 ```
+
+`--split category` writes one playlist per category, and `--split channel` one
+per channel named after it, for adding a single channel to VLC on its own.
+Empty categories are skipped, and two channels sharing a display name get the
+id appended so neither is overwritten.
 
 `--check` probes every URL first and leaves out the ones that don't answer. Be
 aware it is stricter than VLC: a rejected certificate chain fails here but often

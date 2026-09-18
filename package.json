@@ -11,7 +11,9 @@
     "start": "node server.mjs",
     "dev": "node server.mjs",
     "refresh:epg-map": "node scripts/refresh-epg-map.mjs",
-    "export:m3u": "node scripts/export-m3u.mjs --check"
+    "export:m3u": "node scripts/export-m3u.mjs --check",
+    "export:m3u:channels": "node scripts/export-m3u.mjs --check --split channel",
+    "export:m3u:categories": "node scripts/export-m3u.mjs --check --split category"
   },
   "keywords": ["greek-tv", "epg", "hls", "iptv"],
   "license": "MIT"

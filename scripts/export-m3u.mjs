@@ -1,8 +1,11 @@
 // Export the channels that have an open stream as an M3U playlist for VLC.
 //
-//   node scripts/export-m3u.mjs               # all 65, as shipped
-//   node scripts/export-m3u.mjs --check       # probe first, split live/dead
-//   node scripts/export-m3u.mjs --out path.m3u
+//   node scripts/export-m3u.mjs                        # all 65 in one file
+//   node scripts/export-m3u.mjs --check                # probe first, drop dead
+//   node scripts/export-m3u.mjs --split channel        # one file per channel
+//   node scripts/export-m3u.mjs --split category       # one file per category
+//   node scripts/export-m3u.mjs --out path.m3u         # where --split one writes
+//   node scripts/export-m3u.mjs --dir path             # where the others write
 //
 // Entries are named after the channel as this catalogue names it, grouped by
 // category so VLC's playlist sidebar is navigable, and carry the iptv-org
@@ -12,16 +15,28 @@
 // (https://iptv-org.github.io/iptv/countries/gr.m3u); this only renames,
 // groups and filters them. Public IPTV URLs rot, so --check is worth the wait.
 
-import { writeFile } from "node:fs/promises";
+import { writeFile, mkdir } from "node:fs/promises";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CHANNELS, CATEGORIES } from "../public/channels.js";
 
 const args = process.argv.slice(2);
 const check = args.includes("--check");
-const outArg = args.indexOf("--out");
-const OUT = outArg > -1 && args[outArg + 1]
-  ? args[outArg + 1]
-  : fileURLToPath(new URL("../greektv.m3u", import.meta.url));
+
+const flag = (name, fallback = null) => {
+  const i = args.indexOf(name);
+  return i > -1 && args[i + 1] && !args[i + 1].startsWith("--") ? args[i + 1] : fallback;
+};
+
+// one | channel | category
+const split = flag("--split", "one");
+const OUT = flag("--out", fileURLToPath(new URL("../greektv.m3u", import.meta.url)));
+const DIR = flag("--dir", fileURLToPath(new URL("../m3u", import.meta.url)));
+
+if (!["one", "channel", "category"].includes(split)) {
+  console.error(`--split must be one of: one, channel, category (got "${split}")`);
+  process.exit(1);
+}
 
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
@@ -96,22 +111,62 @@ function entry(ch) {
   return `#EXTINF:-1 ${attrs},${ch.name}\n${ch.stream}`;
 }
 
-const lines = ["#EXTM3U", `#PLAYLIST:Greek TV Dial${check ? " (verified)" : ""}`, ""];
-let currentGroup = null;
-for (const ch of live) {
-  const group = CATEGORIES[ch.cat].label;
-  if (group !== currentGroup) {
-    lines.push(`# --- ${group} ---`);
-    currentGroup = group;
+/** A playlist body for `list`, optionally with `# --- group ---` dividers. */
+function playlist(list, title, { dividers = false } = {}) {
+  const lines = ["#EXTM3U", `#PLAYLIST:${title}`, ""];
+  let currentGroup = null;
+  for (const ch of list) {
+    const group = CATEGORIES[ch.cat].label;
+    if (dividers && group !== currentGroup) {
+      lines.push(`# --- ${group} ---`);
+      currentGroup = group;
+    }
+    lines.push(entry(ch));
   }
-  lines.push(entry(ch));
+  lines.push("");
+  return lines.join("\n");
 }
-lines.push("");
 
-await writeFile(OUT, lines.join("\n"), "utf8");
+// Windows forbids \ / : * ? " < > | in a filename. Greek letters are fine.
+const safeName = (s) =>
+  s.replace(/[\\/:*?"<>|]/g, "-").replace(/\s+/g, " ").trim().replace(/\.+$/, "");
 
-console.log(`Wrote ${live.length} channels to ${OUT}`);
+const suffix = check ? " (verified)" : "";
+
+if (split === "one") {
+  await writeFile(OUT, playlist(live, `Greek TV Dial${suffix}`, { dividers: true }), "utf8");
+  console.log(`Wrote ${live.length} channels to ${OUT}`);
+} else if (split === "channel") {
+  const dir = join(DIR, "channels");
+  await mkdir(dir, { recursive: true });
+  const used = new Map();
+  for (const ch of live) {
+    // Two channels can share a display name; keep both by appending the id.
+    let base = safeName(ch.name);
+    if (used.has(base)) base = `${base} (${ch.id})`;
+    used.set(base, ch.id);
+    await writeFile(join(dir, `${base}.m3u`), playlist([ch], ch.name), "utf8");
+  }
+  console.log(`Wrote ${live.length} single-channel playlists to ${dir}`);
+} else {
+  const dir = join(DIR, "categories");
+  await mkdir(dir, { recursive: true });
+  let written = 0;
+  for (const [index, cat] of CATEGORIES.entries()) {
+    const group = live.filter((ch) => ch.cat === index);
+    if (!group.length) continue; // no empty playlists
+    await writeFile(
+      join(dir, `${safeName(cat.label)}.m3u`),
+      playlist(group, `${cat.label}${suffix}`),
+      "utf8"
+    );
+    console.log(`  ${cat.label.padEnd(14)} ${group.length}`);
+    written++;
+  }
+  console.log(`Wrote ${written} category playlists to ${dir}`);
+}
+
 if (check) {
-  console.log(`Excluded ${dead.length} that did not answer:`);
+  console.log(`\nExcluded ${dead.length} that did not answer:`);
   for (const d of dead) console.log(`  ${String(d.ch.id).padEnd(5)} ${d.ch.name.padEnd(22)} ${d.note}`);
 }
