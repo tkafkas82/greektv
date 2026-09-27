@@ -93,6 +93,9 @@ const SOURCES = {
     url: "https://fluxmusic.api.radiosphere.io/channels/7efc3ff2-4804-431f-aaa9-7d1f8a7727c7/current-track",
     pick: (d) => ({ artist: d.trackInfo?.artistCredits, title: d.trackInfo?.title }),
   },
+  // Radio Popolare sends StreamTitle=''. ByteFM, P6 Beat and Nowy Świat fall
+  // through to icy; Nowy Świat's title is the programme, not the track.
+  920: { kind: "none" },
 };
 
 /** channel id -> { at, entry } */
@@ -207,7 +210,8 @@ async function lookup(ch) {
     if (got) entry = entryFrom(got);
   } else if (source.kind === "icy") {
     const text = await readIcy(ch.stream);
-    if (text) entry = entryFrom({ text });
+    // P6 Beat prefixes every title with "/ ".
+    if (text) entry = entryFrom({ text: text.replace(/^[/\s]+/, "") });
   }
 
   cache.set(ch.id, { at: now, entry });

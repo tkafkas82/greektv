@@ -1,6 +1,6 @@
 # Greek TV & Radio
 
-All **251 Greek TV channels** plus **17 radio stations** — 7 Greek and 10
+All **251 Greek TV channels** plus **21 radio stations** — 7 Greek and 14
 European music stations — in one grid, grouped into eleven categories, with the **current programme** for the channels a public guide
 covers and **in-app playback** for everything that has an open stream.
 
@@ -59,7 +59,7 @@ Channels split into two kinds, marked `LIVE` and `WEB` on every card:
   still load inside the frame. You may need to press **Δείτε Τώρα** within it to
   start, which the player says on screen.
 
-### Playback: 82 of 268 channels
+### Playback: 86 of 272 channels
 
 greektv.live does **not** expose its stream URLs. Its channel pages ship
 `"streams":[]` next to an `"encryptedStreams":["YGMGcA6lxqpM0f3…"]` blob that is
@@ -116,16 +116,16 @@ greektv.live link rather than spinning forever.
 ### Defaults
 
 **Μόνο με αναπαραγωγή is checked on load**, so the grid opens on the channels
-that play in-app rather than on all 268. Untick it to see the whole catalogue.
+that play in-app rather than on all 272. Untick it to see the whole catalogue.
 The `checked` attribute in `index.html` and `state.onlyPlayable` in `app.js` have
 to agree — they are the same setting written twice.
 
 Deep links ignore the filter: `/c/ant1` still opens Ant1 even though its card is
 filtered out of the grid.
 
-### Radio: 17 stations
+### Radio: 21 stations
 
-Seven Greek stations sit in **Ραδιόφωνο** and ten European ones in **Ευρώπη
+Seven Greek stations sit in **Ραδιόφωνο** and fourteen European ones in **Ευρώπη
 FM**. Both categories are audio (`AUDIO` in `channels.js`), and a station
 behaves like any other
 card — search, favourites, deep links, the `LIVE`/`WEB` tag and the dead-stream
@@ -156,6 +156,13 @@ or independent, curated and alternative-leaning rather than a chart rotation:
 | KINK | Netherlands | `playerservices.streamtheworld.com` | MP3 192k |
 | FM4 | Austria | `orf-live.ors-shoutcast.at` | MP3 192k |
 | FluxFM | Germany (Berlin) | `streams.fluxfm.de` | MP3 320k |
+| ByteFM | Germany (Hamburg) | `bytefm.cast.addradio.de` | MP3 128k |
+| DR P6 Beat | Denmark | `live-icy.dr.dk` | MP3 128k |
+| Radio Nowy Świat | Poland | `stream.rcs.revma.com` | MP3 |
+| Radio Popolare | Italy (Milan) | `livex.radiopopolare.it` | MP3 64k |
+
+Radio Popolare is the odd one out: news and talk by day, music mostly in the
+evening.
 
 Their URLs are the broadcasters' entry points, not the CDN edges those redirect
 to: RNE, Studio Brussel and FluxFM hand out tokenised edge URLs that expire.
@@ -203,11 +210,12 @@ Two kinds of source, because no single one covers them:
 
 | Source | Stations | How |
 |---|---|---|
-| `icy` | En Lefko, Nitro, Republic, Couleur 3, KINK, FM4 | The stream’s own in-band metadata |
+| `icy` | En Lefko, Nitro, Republic, Couleur 3, KINK, FM4, ByteFM, P6 Beat, Nowy Świat | The stream’s own in-band metadata |
 | `json` | Pepper (Radiojar), Best (Attica), FIP (Radio France livemeta), FluxFM (Radiosphere) | The station’s own endpoint |
-| none | ERT Kosmos, Sport FM, Radio 3, Radar, Antena 3, Nova, Studio Brussel | Publishes neither |
+| none | ERT Kosmos, Sport FM, Radio 3, Radar, Antena 3, Nova, Studio Brussel, Popolare | Publishes neither |
 
-Radio 3, Radar, Antena 3 and Nova send an empty `StreamTitle`; Studio Brussel’s
+Radio 3, Radar, Antena 3, Nova and Popolare send an empty `StreamTitle`;
+Nowy Świat’s names the programme rather than the track; Studio Brussel’s
 is only ever its own name. FluxFM’s stream does name the track, but only ~20s in
 after a “FluxFM - Livestream” filler — past the read budget — so it goes through
 its app backend instead.
@@ -497,8 +505,8 @@ npm run export:m3u         # write greektv.m3u for VLC, probing each URL first
 
 ### Channel logos
 
-Every one of the 268 channels has its real logo, stored in `public/logos/` —
-245 files, 1.4 MB, because sub-channels of one broadcaster often share a mark.
+Every one of the 272 channels has its real logo, stored in `public/logos/` —
+249 files, 1.4 MB, because sub-channels of one broadcaster often share a mark.
 `scripts/refresh-logos.mjs` rebuilds both the folder and the `slug -> file` map
 in `public/logos.js`; `npm run refresh:logos:check` reports coverage without
 downloading anything.
@@ -517,7 +525,7 @@ Two sources, because neither covers the whole catalogue:
   in its station list. The same table repairs two directory rows whose URL
   404s on a typo upstream (`avant`, `jackson_palace`).
 
-The files are downloaded rather than hot-linked: hot-linking would put 268
+The files are downloaded rather than hot-linked: hot-linking would put 272
 requests to two third parties on the critical path of every visit, and would
 break the grid the day either one moved a file. They are not precached by the
 service worker either — each is cached as it is actually requested, so a first

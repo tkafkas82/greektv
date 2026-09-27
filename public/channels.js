@@ -350,7 +350,12 @@ const ROWS = [
   ["Studio Brussel (Βέλγιο)",913,"studio-brussel",10,"https://quantumcast.vrtcdn.be/stubru/mp3-128",null,"https://stubru.be/"],
   ["KINK (Ολλανδία)",914,"kink",10,"https://playerservices.streamtheworld.com/api/livestream-redirect/KINK.mp3",null,"https://kink.nl/"],
   ["FM4 (Αυστρία)",915,"fm4",10,"https://orf-live.ors-shoutcast.at/fm4-q2a",null,"https://fm4.orf.at/"],
-  ["FluxFM (Γερμανία)",916,"fluxfm",10,"https://streams.fluxfm.de/Flux/mp3-320/streams.fluxfm.de/",null,"https://www.fluxfm.de/"]
+  ["FluxFM (Γερμανία)",916,"fluxfm",10,"https://streams.fluxfm.de/Flux/mp3-320/streams.fluxfm.de/",null,"https://www.fluxfm.de/"],
+  ["ByteFM (Γερμανία)",917,"bytefm",10,"https://bytefm.cast.addradio.de/bytefm/main/mid/stream",null,"https://www.byte.fm/"],
+  ["P6 Beat (Δανία)",918,"dr-p6-beat",10,"https://live-icy.dr.dk/A/A29H.mp3",null,"https://www.dr.dk/lyd/p6beat"],
+  ["Radio Nowy Świat (Πολωνία)",919,"radio-nowy-swiat",10,"https://stream.rcs.revma.com/ypqt40u0x1zuv",null,"https://nowyswiat.online/"],
+  // Talk-heavy: news and current affairs by day, music mostly in the evening.
+  ["Radio Popolare (Ιταλία)",920,"radio-popolare",10,"https://livex.radiopopolare.it/radiopop",null,"https://www.radiopopolare.it/"]
 ];
 
 export const CHANNELS = ROWS.map(([name, id, slug, cat, stream, tvg, site]) => ({

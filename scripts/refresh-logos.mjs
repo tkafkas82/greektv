@@ -80,6 +80,13 @@ const PINNED = {
   fm4: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/FM4.svg/330px-FM4.svg.png",
   // fluxfm.de's own icons are a bare yellow tab with no lettering.
   fluxfm: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/FluxFM.svg/330px-FluxFM.svg.png",
+  bytefm: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/ByteFM.svg/330px-ByteFM.svg.png",
+  "dr-p6-beat":
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/DR_P6_Beat_2017_logo.png/330px-DR_P6_Beat_2017_logo.png",
+  "radio-nowy-swiat":
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/Radio_Nowy_%C5%9Awiat_logotyp.png/330px-Radio_Nowy_%C5%9Awiat_logotyp.png",
+  // <link rel="icon"> on radiopopolare.it, the yellow app mark. No Commons file.
+  "radio-popolare": "https://www.radiopopolare.it/icon.png?icon.43d1dm2_g8c_n.png",
 
   // Two directory rows point at a file that is not in the asset repo, both off
   // by a letter: it holds avanti.webp and jakson_palace.webp, while the
@@ -93,9 +100,9 @@ const PINNED = {
 
 // Banners that must be shown whole rather than cropped to their middle. Each
 // is a wordmark across the full width - "FLUX FM", "RTP antena 3", "radio
-// nova" - so a cropped plate would show half a word, and a thin whole logo
+// nova", "ByteFM", "NOWY ŚWIAT" - so a cropped plate would show half a word, and a thin whole logo
 // reads better.
-const NO_CROP = new Set([PINNED.fluxfm, PINNED["antena-3"], PINNED["radio-nova"]]);
+const NO_CROP = new Set([PINNED.fluxfm, PINNED["antena-3"], PINNED["radio-nova"], PINNED.bytefm, PINNED["radio-nowy-swiat"]]);
 
 // Wikimedia asks for a descriptive user agent and answers a bare one with 429.
 const UA = { "user-agent": "greektv-dial/1.0 (logo refresh; https://github.com/tkafkas82/greektv)" };
