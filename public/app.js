@@ -701,15 +701,23 @@ function paintSaveButtons() {
   rsSave.hidden = !real;
   if (real) {
     const done = isSaved(text);
-    rsSave.textContent = done ? "✓ Αποθηκεύτηκε" : "♥ Αποθήκευση";
-    rsSave.disabled = done;
+    // Once saved the button stops being a dead end and becomes the way into the
+    // list, so "where did it go?" is answered by the thing you just pressed.
+    rsSave.textContent = done ? "✓ Αποθηκεύτηκε · Προβολή" : "♥ Αποθήκευση";
+    rsSave.classList.toggle("done", done);
+    rsSave.title = done ? "Άνοιγμα των αποθηκευμένων τραγουδιών" : "";
   }
 
   const mb = document.getElementById("mb-save");
   const barText = radioCh ? songText(radioCh) : "";
   const barReal = Boolean(barText) && barText !== "—";
+  const barDone = barReal && isSaved(barText);
   mb.hidden = !barReal;
-  mb.setAttribute("aria-pressed", barReal && isSaved(barText) ? "true" : "false");
+  mb.setAttribute("aria-pressed", barDone ? "true" : "false");
+  mb.setAttribute(
+    "aria-label",
+    barDone ? "Άνοιγμα αποθηκευμένων" : "Αποθήκευση τραγουδιού"
+  );
 }
 
 /**
@@ -800,6 +808,7 @@ function renderSaved() {
 
 function openSongs() {
   renderSaved();
+  // Reachable from inside the player, so it has to sit above that overlay.
   songsSheet.setAttribute("open", "");
   document.getElementById("songs-close").focus();
 }
@@ -810,8 +819,16 @@ document.getElementById("songs-close").addEventListener("click", closeSongs);
 songsSheet.addEventListener("click", (ev) => {
   if (ev.target === songsSheet) closeSongs();
 });
-rsSave.addEventListener("click", () => playing && saveSong(playing));
-document.getElementById("mb-save").addEventListener("click", () => radioCh && saveSong(radioCh));
+rsSave.addEventListener("click", () => {
+  if (!playing) return;
+  if (isSaved(songText(playing))) openSongs();
+  else saveSong(playing);
+});
+document.getElementById("mb-save").addEventListener("click", () => {
+  if (!radioCh) return;
+  if (isSaved(songText(radioCh))) openSongs();
+  else saveSong(radioCh);
+});
 
 /* --------------------------------------------------------- what's playing */
 async function loadSongs() {

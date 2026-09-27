@@ -57,6 +57,21 @@ async function deezer(q) {
   }
 }
 
+/**
+ * A last-resort form of the query, for titles Deezer will not match verbatim.
+ * "Neiked X Portugal. The Man - Glide" finds nothing as written - the collab
+ * marker and the full stop in the artist both break it - but the same words
+ * with the punctuation gone find the track.
+ */
+function loosen(query) {
+  return query
+    .replace(/\([^()]*\)/g, " ") // "(Radio Edit)", "(Chris Coco Mix)"
+    .replace(/\b(?:feat|ft|featuring|with|vs|versus|x)\b\.?/gi, " ")
+    .replace(/[^\p{L}\p{N}\s]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 async function resolve(query) {
   const key = norm(query);
   const now = Date.now();
@@ -69,6 +84,10 @@ async function resolve(query) {
   let track = null;
   if (artist && title) track = await deezer(`artist:"${artist}" track:"${title}"`);
   if (!track) track = await deezer(query);
+
+  // Only worth a third request when it actually differs from what was tried.
+  const loose = loosen(query);
+  if (!track && loose && norm(loose) !== norm(query)) track = await deezer(loose);
 
   if (cache.size >= MAX_ENTRIES) cache.delete(cache.keys().next().value);
   cache.set(key, { at: now, track });

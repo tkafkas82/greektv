@@ -396,15 +396,22 @@ answers `401` without a client id and secret, and YouTube’s Data API answers
 route. The YouTube Music link is built rather than looked up, since a search URL
 needs no key, and it is the fallback for anyone not on Deezer.
 
-When both halves are present the fielded form (`artist:"…" track:"…"`) is tried
-first, which avoids matching a cover or a remix album, then the plain query.
+Three forms are tried in order: the fielded one (`artist:"…" track:"…"`), which
+avoids matching a cover or a remix album; the plain query; and finally a
+loosened one with the punctuation and collaboration markers stripped.
+“Neiked X Portugal. The Man - Glide” finds nothing as written — the `X` and the
+full stop in the artist both break it — but the same words loosened find the
+track. The word boundaries in that regex are load-bearing: without them it eats
+the `x` inside “Next”.
 Station titles arrive in odd shapes — shouty caps, `Feat.` in the artist — and
 both resolved correctly in testing. No match is a real outcome, not an error: the
 song still saves, with the YouTube link and a **Χωρίς Deezer** marker.
 
 Saved songs live in `localStorage` under `greektv.songs`, like the favourites and
 the dead-stream memory — no account, nothing leaves the device. ♥ on the player
-stage or the radio bar saves what is on; **Τραγούδια** in the header lists them.
+stage or the radio bar saves what is on; **Τραγούδια** in the header lists them,
+and once a song is saved that same button opens the list rather than sitting
+there as a dead end.
 The song is stored the moment you press ♥, before the lookup returns, so a slow
 or failed resolve never loses it — the link is an enrichment, not the point.
 
