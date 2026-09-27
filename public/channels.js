@@ -5,8 +5,10 @@
 // stream are opened for playback.
 //
 // Stream URLs come from the openly published iptv-org Greek playlist
-// (https://iptv-org.github.io/iptv/countries/gr.m3u). Only 65 of the 251
-// channels have one; the rest are directory-only. See README.md.
+// (https://iptv-org.github.io/iptv/countries/gr.m3u), except where a broadcaster
+// publishes its own live manifest and iptv-org does not carry the channel - see
+// RESOLVED_IDS below. Only 66 of the 251 channels have a stream; the rest are
+// directory-only. See README.md.
 //
 // Row shape: [name, id, slug, categoryIndex, streamUrl|null, tvgId|null]
 
@@ -30,7 +32,7 @@ const ROWS = [
   ["Ant1",5,"ant1",0,"https://mcdn.antennaplus.gr/live/media0/Ant1/HLS/Ant1.m3u8","ANT1.gr@SD"],
   ["Alpha",4,"alpha",0,"https://alphatvlive2.siliconweb.com/alphatvlive/live_abr/playlist.m3u8","AlphaTV.gr@SD"],
   ["Star",9,"star",0,"http://livestar.siliconweb.com/starvod/star4/star4.m3u8","StarChannel.gr@SD"],
-  ["Open Beyond",7,"open-beyond",0,null,null],
+  ["Open Beyond",7,"open-beyond",0,"https://liveopen.siliconweb.com/openTvLive/liveopen/chunks.m3u8",null],
   ["Skai",8,"skai",0,"http://skai-live-back.siliconweb.com/media/cambria4/index.m3u8","SkaiTV.gr@SD"],
   ["Makedonia TV",11,"makedonia-tv",0,null,null],
   ["Vouli",10,"vouli",0,"https://ert-ucdn.broadpeak-aas.com/bpk-tv/VOULITV/default/index.m3u8","HellenicParliamentTV.gr@SD"],
@@ -290,3 +292,8 @@ export const CHANNELS = ROWS.map(([name, id, slug, cat, stream, tvg]) => ({
 
 export const BY_ID = new Map(CHANNELS.map((c) => [c.id, c]));
 export const BY_TVG = new Map(CHANNELS.filter((c) => c.tvg).map((c) => [c.tvg, c]));
+
+// Channels whose broadcaster rotates its manifest URL, so the entry above is only
+// a fallback and the live URL is fetched from /api/resolve at play time. Must stay
+// in step with RESOLVERS in lib/resolvers.js.
+export const RESOLVED_IDS = new Set([7]);

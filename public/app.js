@@ -1,7 +1,7 @@
 // Greek TV Dial - grid, search, guide overlay and player.
 
 // Root-absolute so a /c/<slug> deep link doesn't resolve this to /c/channels.js.
-import { CHANNELS, CATEGORIES } from "/channels.js";
+import { CHANNELS, CATEGORIES, RESOLVED_IDS } from "/channels.js";
 
 const EPG_REFRESH_MS = 5 * 60 * 1000;
 const TICK_MS = 30 * 1000;
@@ -429,6 +429,8 @@ const switchCount = document.getElementById("p-switch-count");
 
 let hls = null;
 let playing = null;
+/** The URL actually attached, which for a resolved channel is not ch.stream. */
+let playingUrl = null;
 let usedRelay = false;
 let lastFocus = null;
 /** The channels the prev/next buttons and the switcher walk through. */
@@ -536,7 +538,7 @@ function retryOrFail(reason) {
   if (!usedRelay && playing) {
     usedRelay = true;
     showNote("Δοκιμή μέσω διακομιστή…", "Η απευθείας σύνδεση απέτυχε.", { spin: true });
-    attach(relayUrl(playing.stream));
+    attach(relayUrl(playingUrl));
     return;
   }
   failed(reason);
@@ -635,14 +637,31 @@ function markCurrent() {
 }
 
 /**
+ * Current URL for a channel whose broadcaster rotates it. Falls back to the
+ * catalogue entry on any failure, so a resolver outage degrades to what we ship
+ * rather than to a dead stream and a premature markDead().
+ */
+async function resolveStream(ch) {
+  if (!RESOLVED_IDS.has(ch.id)) return ch.stream;
+  try {
+    const res = await fetch(`/api/resolve?ch=${ch.id}`, { headers: { accept: "application/json" } });
+    const data = await res.json();
+    return data.stream || ch.stream;
+  } catch {
+    return ch.stream;
+  }
+}
+
+/**
  * Swap the player over to `ch` without closing it.
  * @param {object} ch
  * @param {{push?: boolean}} opts push=false when replaying a history entry,
  *        so stepping back through channels doesn't append new ones.
  */
-function loadChannel(ch, { push = true } = {}) {
+async function loadChannel(ch, { push = true } = {}) {
   teardown();
   playing = ch;
+  playingUrl = ch.stream;
   usedRelay = false;
 
   const cat = CATEGORIES[ch.cat];
@@ -664,10 +683,16 @@ function loadChannel(ch, { push = true } = {}) {
 
   if (playsDirect(ch)) {
     showNote("Σύνδεση…", "Φόρτωση ροής.", { spin: true });
+
+    const url = await resolveStream(ch);
+    // Zapping and Back both re-enter this while a resolve is in flight.
+    if (playing !== ch) return;
+    playingUrl = url;
+
     // http streams can never load on an https page - go straight to the relay.
-    const mustRelay = ch.stream.startsWith("http://") && location.protocol === "https:";
+    const mustRelay = url.startsWith("http://") && location.protocol === "https:";
     if (mustRelay) usedRelay = true;
-    attach(mustRelay ? relayUrl(ch.stream) : ch.stream);
+    attach(mustRelay ? relayUrl(url) : url);
     return;
   }
 
@@ -751,6 +776,7 @@ function closePlayer({ push = true } = {}) {
   player.removeAttribute("open");
   document.body.style.overflow = "";
   playing = null;
+  playingUrl = null;
   hideNote();
   document.title = BASE_TITLE;
   if (push && channelFromUrl()) history.pushState({}, "", "/");

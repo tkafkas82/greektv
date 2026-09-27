@@ -59,7 +59,7 @@ Channels split into two kinds, marked `LIVE` and `WEB` on every card:
   still load inside the frame. You may need to press **Δείτε Τώρα** within it to
   start, which the player says on screen.
 
-### Playback: 65 of 251 channels
+### Playback: 66 of 251 channels
 
 greektv.live does **not** expose its stream URLs. Its channel pages ship
 `"streams":[]` next to an `"encryptedStreams":["YGMGcA6lxqpM0f3…"]` blob that is
@@ -69,8 +69,14 @@ embedding the streams. Those streams are therefore not used here at all.
 Instead, streams come from the **openly published
 [iptv-org Greek playlist](https://iptv-org.github.io/iptv/countries/gr.m3u)**.
 Matching its 71 entries against the catalogue by name yields **65 channels** with
-a playable HLS URL, marked `LIVE`. The other 186 fall back to the embedded page
+a playable HLS URL, marked `LIVE`. The other 185 fall back to the embedded page
 described above, so they still play without leaving the grid.
+
+One channel is added on top of that: **Open Beyond**, which iptv-org does not
+carry. Its broadcaster publishes the current manifest itself, from the JSON the
+tvopen.gr embed player reads, so nothing here decrypts anyone else’s bundle.
+Because that URL rotates, the catalogue entry is only a fallback and the live one
+is fetched at play time — see [`GET /api/resolve`](#get-apiresolve).
 
 **Public IPTV URLs rot, so the app learns which ones are dead.** A probe of all
 65 at the time of writing found **13 already gone** — Ant1 on `403`, both ERT
@@ -131,12 +137,14 @@ public/
   channels.js     the catalogue — single source of truth
 lib/
   channels.js     re-exports public/channels.js so the API shares one copy
+  resolvers.js    broadcasters that publish their own rotating manifest URL
   epg-map.js      our channel id -> Digea channel id (generated)
   digea.js        Digea client, Athens-time conversion, rating extraction
   epg.js          10-minute cache, now/next resolution
 api/
-  epg.js          GET /api/epg   -> what's on now, per channel
-  stream.js       GET /api/stream -> HLS relay
+  epg.js          GET /api/epg     -> what's on now, per channel
+  resolve.js      GET /api/resolve -> current URL for a rotating stream
+  stream.js       GET /api/stream  -> HLS relay
 scripts/
   refresh-epg-map.mjs
 server.mjs        local static + API server (Vercel ignores it)
@@ -173,6 +181,26 @@ Digea returns Athens wall-clock strings; `lib/digea.js` converts them to epoch m
 with a two-pass `Intl` offset lookup, so the hour DST shifts resolves correctly
 without a date library. Age ratings (`[K12] Some Show`) are split off the title
 and shown as a chip. Synopses are not stored or served.
+
+### `GET /api/resolve`
+
+`?ch=<channel id>` returns the URL a broadcaster is serving right now, for the
+few channels that rotate theirs:
+
+```json
+{ "channel": 7, "stream": "https://…/chunks.m3u8", "source": "live", "fetchedAt": 1758… }
+```
+
+`source` is `live` (fetched from the broadcaster), `cache` (module-scope, 60s) or
+`fallback`. It falls back to the catalogue URL whenever the endpoint is
+unreachable, returns a non-200, fails to parse, or hands back a URL whose host the
+resolver did not declare in `lib/resolvers.js`. That host allowlist is the point:
+a changed or hostile upstream cannot redirect playback to an arbitrary origin.
+
+Channels without a resolver return `404`. The player only calls this for ids in
+`RESOLVED_IDS`, so the other 250 cards open with no extra request. A failed
+resolve returns the catalogue URL rather than nothing, so it never trips the
+dead-stream memory on its own.
 
 ### `GET /api/stream`
 

@@ -12,6 +12,7 @@ import { extname, join, normalize, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import epgHandler from "./api/epg.js";
+import resolveHandler from "./api/resolve.js";
 import streamHandler from "./api/stream.js";
 
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
@@ -20,6 +21,7 @@ const PORT = Number(process.env.PORT) || 3000;
 
 const ROUTES = {
   "/api/epg": epgHandler,
+  "/api/resolve": resolveHandler,
   "/api/stream": streamHandler,
 };
 
