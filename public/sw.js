@@ -6,6 +6,10 @@
 //   - /api/* is never cached. The guide is time-sensitive and /api/resolve
 //     exists precisely to avoid a stale URL, so serving either from a cache
 //     would undo the point of both.
+//   - The 234 channel logos are not precached. They are same-origin, so the
+//     fetch handler below caches each one as it is actually requested, which
+//     fills the cache with the logos a viewer has really seen instead of
+//     spending a megabyte of their data on the first visit.
 //   - Cross-origin requests are passed straight through. Streams, segments and
 //     fonts are someone else's bytes; caching megabytes of live video per
 //     viewer would be worse than useless.
@@ -19,13 +23,14 @@
 //
 // Bump VERSION to invalidate the shell. Old caches are dropped on activate.
 
-const VERSION = "v2";
+const VERSION = "v3";
 const SHELL = `greektv-shell-${VERSION}`;
 
 const ASSETS = [
   "/",
   "/app.js",
   "/channels.js",
+  "/logos.js",
   "/resolvers.js",
   "/styles.css",
   "/manifest.webmanifest",

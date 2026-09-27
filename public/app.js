@@ -3,6 +3,7 @@
 // Root-absolute so a /c/<slug> deep link doesn't resolve this to /c/channels.js.
 import { CHANNELS, CATEGORIES, CATEGORY_ORDER, RELAY_ONLY_HOSTS } from "/channels.js";
 import { RESOLVERS, acceptableUrl } from "/resolvers.js";
+import { logoFor } from "/logos.js";
 
 const EPG_REFRESH_MS = 5 * 60 * 1000;
 const TICK_MS = 30 * 1000;
@@ -110,6 +111,36 @@ const clock = (ms) =>
 for (const ch of CHANNELS) {
   ch.searchKey = `${fold(ch.name)} ${ch.slug.replace(/-/g, " ")}`;
   ch.initials = initials(ch.name);
+  ch.logo = logoFor(ch);
+}
+
+/**
+ * Dress a plate with the channel's logo, falling back to its initials.
+ *
+ * The initials are written first and always, and the class that hides them goes
+ * on only when the image has decoded, so a plate shows letters while the file
+ * loads and keeps them if it never arrives. `plate` is the tile; `ini` is
+ * whatever element holds the letters, which on a card is a child because the
+ * plate also carries the play overlay.
+ */
+function paintPlate(plate, ch, ini = plate) {
+  const stale = plate.querySelector("img.lg");
+  if (stale) stale.remove();
+  plate.classList.remove("has-logo");
+  ini.textContent = ch.initials;
+  if (!ch.logo) return;
+
+  const img = document.createElement("img");
+  img.className = ch.logo.wide ? "lg wide" : "lg";
+  img.alt = "";
+  img.loading = "lazy";
+  img.decoding = "async";
+  img.addEventListener("load", () => plate.classList.add("has-logo"));
+  // A logo that will not load is not worth a broken-image glyph; the initials
+  // are already underneath it.
+  img.addEventListener("error", () => img.remove());
+  img.src = ch.logo.url;
+  plate.appendChild(img);
 }
 
 /* ------------------------------------------------------------------ state */
@@ -176,7 +207,7 @@ function card(ch) {
     `</span>` +
     `<span class="prog" hidden><span class="track"><span class="fill"></span></span><span class="times"></span></span>`;
 
-  el.querySelector(".ini").textContent = ch.initials;
+  paintPlate(el.querySelector(".plate"), ch, el.querySelector(".ini"));
   el.querySelector(".nm").textContent = ch.name;
   el.querySelector(".cn").textContent = String(ch.id).padStart(3, "0");
 
@@ -612,7 +643,7 @@ function showRadioStage() {
   video.hidden = true;
   frame.hidden = true;
   radioStage.hidden = false;
-  document.getElementById("rs-plate").textContent = playing ? playing.initials : "";
+  paintPlate(document.getElementById("rs-plate"), playing);
   document.getElementById("rs-name").textContent = playing ? playing.name : "";
   document.getElementById("rs-now").textContent = playing ? songText(playing) : "—";
   paintSaveButtons();
@@ -637,7 +668,7 @@ function paintMiniBar() {
   minibar.hidden = player.hasAttribute("open");
   document.body.classList.toggle("with-bar", !minibar.hidden);
   minibar.style.setProperty("--h", CATEGORIES[radioCh.cat].hue);
-  document.getElementById("mb-plate").textContent = radioCh.initials;
+  paintPlate(document.getElementById("mb-plate"), radioCh);
   document.getElementById("mb-name").textContent = radioCh.name;
   document.getElementById("mb-now").textContent = songText(radioCh);
 
@@ -955,7 +986,7 @@ function buildSwitcher() {
       '<span class="mini" aria-hidden="true"></span>' +
       '<span class="body"><span class="t"></span><span class="g"></span></span>' +
       `<span class="tag${playsDirect(ch) ? " on" : ""}"></span>`;
-    btn.querySelector(".mini").textContent = ch.initials;
+    paintPlate(btn.querySelector(".mini"), ch);
     btn.querySelector(".t").textContent = ch.name;
     btn.querySelector(".g").textContent =
       entry && entry.now ? entry.now.title : CATEGORIES[ch.cat].label;
@@ -1060,7 +1091,7 @@ async function loadChannel(ch, { push = true } = {}) {
 
   const cat = CATEGORIES[ch.cat];
   player.style.setProperty("--h", cat.hue);
-  document.getElementById("p-plate").textContent = ch.initials;
+  paintPlate(document.getElementById("p-plate"), ch);
   document.getElementById("p-name").textContent = ch.name;
   document.getElementById("p-meta").textContent = `${String(ch.id).padStart(3, "0")} · ${cat.label}`;
   document.getElementById("p-out").href = ch.watchUrl;

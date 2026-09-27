@@ -461,8 +461,46 @@ Both optional; see `.env.example`.
 
 ```bash
 npm run refresh:epg-map    # re-pull Digea's channel list and rebuild lib/epg-map.js
+npm run refresh:logos      # re-download every channel logo and rebuild public/logos.js
 npm run export:m3u         # write greektv.m3u for VLC, probing each URL first
 ```
+
+### Channel logos
+
+Every one of the 257 channels has its real logo, stored in `public/logos/` —
+234 files, 1.2 MB, because sub-channels of one broadcaster often share a mark.
+`scripts/refresh-logos.mjs` rebuilds both the folder and the `slug -> file` map
+in `public/logos.js`; `npm run refresh:logos:check` reports coverage without
+downloading anything.
+
+Two sources, because neither covers the whole catalogue:
+
+- **TV** — the greektv.live `/tv` page ships its whole channel list as an
+  embedded JSON payload, one `logo` URL per channel, so all 251 cost a single
+  request. The images themselves live in a public GitHub repo.
+- **Radio** — the six stations are not in that directory, so their logos are
+  pinned by hand in the script's `PINNED` table, from each station's own site.
+  Half of them are not scrapeable: the page a station is listed on belongs to a
+  portal (live24, Attica Radios, ERTecho), whose `og:image` is the portal's own
+  logo, so those entries point at the artwork the portal uses for the station
+  in its station list. The same table repairs two directory rows whose URL
+  404s on a typo upstream (`avant`, `jackson_palace`).
+
+The files are downloaded rather than hot-linked: hot-linking would put 257
+requests to two third parties on the critical path of every visit, and would
+break the grid the day either one moved a file. They are not precached by the
+service worker either — each is cached as it is actually requested, so a first
+visit doesn't spend a megabyte on logos nobody scrolled to.
+
+A plate shows the channel's monogram while its logo loads, and keeps the
+monogram if the file never arrives, so no tile is ever blank. Logos sit on a
+light tile in both themes: channel marks are drawn for white backgrounds and
+most are dark ink on transparency, which on a dark plate would be ink on ink.
+The one banner-shaped logo in the set — Nitro 98.6, whose only surviving
+artwork is a 1000×140 page header — is cropped to its middle rather than fitted
+whole, which would leave a sliver three pixels tall. The script measures each
+image from its own header and flags anything wider than 2:1, so that stays a
+rule rather than a special case.
 
 ### Playlist for VLC
 
@@ -510,6 +548,9 @@ playlist and re-match the `stream` column in `public/channels.js`.
   only channels with a guide.
 - `Esc` closes the player. `#ch=<id>` in the URL opens straight into a channel.
 
+- Every plate — card, player header, channel rail, radio stage, mini bar — shows
+  the channel's own logo, with its monogram as the fallback.
+
 Renders in the viewer's light or dark theme. Works down to phone width.
 
 ## Credits and scope
@@ -521,9 +562,12 @@ Renders in the viewer's light or dark theme. Works down to phone width.
 - Streams: **[iptv-org](https://github.com/iptv-org/iptv)**.
 - Guide: **[Digea](https://www.digea.gr)**.
 
-Channel logos are not re-hosted; each card draws a generated monogram tile
-coloured by category instead. A personal viewing aid over publicly listed
-free-to-air channels — check what your own use allows before publishing it
-somewhere public.
+- Logos: each broadcaster's own mark, via the directory above for TV and each
+  station's own site for radio. See [Channel logos](#channel-logos). Trade marks
+  belong to the broadcasters; they are here to identify channels, and a card
+  falls back to a monogram tile where no logo is available.
+
+A personal viewing aid over publicly listed free-to-air channels — check what
+your own use allows before publishing it somewhere public.
 
 MIT.

@@ -10,6 +10,7 @@
   --signal:#D24A1E;
   --plate-s:60%; --plate-l:91%; --plate-ink-s:52%; --plate-ink-l:30%;
   --dot-s:58%; --dot-l:46%;
+  --logo-bg:#FFFFFF;
   --shadow:0 1px 2px rgba(16,26,42,.07), 0 1px 1px rgba(16,26,42,.04);
   --star:#C9922A;
   --scrim:rgba(11,16,24,.72);
@@ -26,6 +27,7 @@
     --signal:#FF7C4F;
     --plate-s:36%; --plate-l:21%; --plate-ink-s:62%; --plate-ink-l:75%;
     --dot-s:60%; --dot-l:62%;
+    --logo-bg:#E7EBF1;
     --shadow:0 1px 2px rgba(0,0,0,.4);
     --star:#E8B44C;
     --scrim:rgba(4,7,12,.82);
@@ -39,6 +41,7 @@
   --signal:#FF7C4F;
   --plate-s:36%; --plate-l:21%; --plate-ink-s:62%; --plate-ink-l:75%;
   --dot-s:60%; --dot-l:62%;
+  --logo-bg:#E7EBF1;
   --shadow:0 1px 2px rgba(0,0,0,.4);
   --star:#E8B44C;
   --scrim:rgba(4,7,12,.82);
@@ -213,6 +216,39 @@ button{font:inherit; color:inherit}
 }
 .plate .play svg{width:17px; height:17px; fill:currentColor}
 .ch:hover .plate .play, .ch:has(.hit:focus-visible) .plate .play{opacity:1}
+
+/* ------------------------------------------------------------------ logos */
+/* Every plate in the app - card, player head, switcher, radio stage, mini bar -
+   is the same thing at four sizes, so one rule set dresses all of them.
+
+   The initials stay in the markup underneath: they are what shows while the
+   image is still loading, and what stays if the file 404s, so a plate is never
+   blank. paintPlate() adds .has-logo only once the image has actually decoded,
+   and that class is what hides the letters - `color:transparent` rather than
+   removing them, so the fallback costs nothing to restore.
+
+   Logos are drawn on a light tile in both themes. Channel marks are made for
+   white backgrounds and most are dark ink on transparency; on the dark plate
+   they would be ink on ink. */
+.plate, .player-head .pl, .sw .mini, .rs-plate, .mb-plate{position:relative; overflow:hidden}
+.lg{
+  position:absolute; inset:0; z-index:1; width:100%; height:100%;
+  object-fit:contain; padding:6%;
+}
+/* A banner-shaped logo fitted whole would be a few pixels tall here, so it is
+   cropped to its middle instead - which is where the mark sits. */
+.lg.wide{object-fit:cover; padding:0}
+/* Named one by one rather than as a bare .has-logo, because every plate sets
+   its own category-hued background further down this file and would otherwise
+   win on either specificity or order. */
+.plate.has-logo,
+.player-head .pl.has-logo,
+.sw .mini.has-logo,
+.rs-plate.has-logo,
+.mb-plate.has-logo{color:transparent; background:var(--logo-bg)}
+/* The dotted screen over a card plate is texture for a bare plate; over a logo
+   it just muddies it. */
+.plate.has-logo::after{opacity:0}
 
 .info{grid-area:info; min-width:0; display:flex; flex-direction:column; gap:1px}
 .nm{
