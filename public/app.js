@@ -615,6 +615,7 @@ function showRadioStage() {
   document.getElementById("rs-plate").textContent = playing ? playing.initials : "";
   document.getElementById("rs-name").textContent = playing ? playing.name : "";
   document.getElementById("rs-now").textContent = playing ? songText(playing) : "—";
+  paintSaveButtons();
   hideNote();
 }
 
@@ -675,6 +676,143 @@ radio.addEventListener("error", () => {
   else stopRadio();
 });
 
+/* ------------------------------------------------------------ saved songs */
+// Kept in this browser only, like the favourites and the dead-stream memory:
+// no account, nothing leaves the device. /api/track turns the free text a
+// station broadcasts into a real Deezer link; the YouTube Music link is built
+// from the same text and always works.
+let saved = store.get("greektv.songs", []);
+if (!Array.isArray(saved)) saved = [];
+
+const songsSheet = document.getElementById("songs");
+const rsSave = document.getElementById("rs-save");
+const songKey = (text) => text.trim().replace(/\s+/g, " ").toLowerCase();
+const isSaved = (text) => Boolean(text) && saved.some((e) => e.key === songKey(text));
+
+function persistSaved() {
+  store.set("greektv.songs", saved);
+  document.getElementById("songs-n").textContent = saved.length;
+}
+
+/** The stage button doubles as the status: it says what it will do, or did. */
+function paintSaveButtons() {
+  const text = playing && playing.audio ? songText(playing) : "";
+  const real = Boolean(text) && text !== "—";
+  rsSave.hidden = !real;
+  if (real) {
+    const done = isSaved(text);
+    rsSave.textContent = done ? "✓ Αποθηκεύτηκε" : "♥ Αποθήκευση";
+    rsSave.disabled = done;
+  }
+
+  const mb = document.getElementById("mb-save");
+  const barText = radioCh ? songText(radioCh) : "";
+  const barReal = Boolean(barText) && barText !== "—";
+  mb.hidden = !barReal;
+  mb.setAttribute("aria-pressed", barReal && isSaved(barText) ? "true" : "false");
+}
+
+/**
+ * Resolve and keep the track a station is playing right now.
+ * @param {object} ch the station it is playing on
+ */
+async function saveSong(ch) {
+  const text = songText(ch);
+  if (!text || text === "—" || isSaved(text)) return;
+
+  // Store it immediately with what we already know, so a slow or failed lookup
+  // never loses the song - the link is an enrichment, not the point.
+  const entry = {
+    key: songKey(text),
+    text,
+    artist: "",
+    title: text,
+    deezer: "",
+    youtube: `https://music.youtube.com/search?q=${encodeURIComponent(text)}`,
+    station: ch.id,
+    stationName: ch.name,
+    at: Date.now(),
+  };
+  saved.unshift(entry);
+  persistSaved();
+  paintSaveButtons();
+
+  try {
+    const res = await fetch(`/api/track?q=${encodeURIComponent(text)}`, {
+      headers: { accept: "application/json" },
+    });
+    const data = await res.json();
+    if (data.youtube) entry.youtube = data.youtube;
+    if (data.track) {
+      entry.artist = data.track.artist || "";
+      entry.title = data.track.title || entry.title;
+      entry.deezer = data.track.deezer || "";
+      entry.cover = data.track.cover || "";
+    }
+    persistSaved();
+    if (songsSheet.hasAttribute("open")) renderSaved();
+  } catch {
+    /* the entry is already saved; it just has no Deezer link */
+  }
+}
+
+function renderSaved() {
+  const list = document.getElementById("songs-list");
+  document.getElementById("songs-empty").hidden = saved.length > 0;
+  list.innerHTML = "";
+
+  for (const e of saved) {
+    const li = document.createElement("li");
+    li.className = "song";
+    li.innerHTML =
+      `<span class="song-art"></span>` +
+      `<span class="song-txt"><b></b><span></span></span>` +
+      `<span class="song-acts">` +
+        `<a class="song-link dz" target="_blank" rel="noopener">Deezer</a>` +
+        `<a class="song-link yt" target="_blank" rel="noopener">YT Music</a>` +
+        `<button class="song-del" type="button" aria-label="Αφαίρεση">✕</button>` +
+      `</span>`;
+
+    const art = li.querySelector(".song-art");
+    if (e.cover) art.style.backgroundImage = `url("${e.cover}")`;
+    else art.textContent = "♪";
+
+    li.querySelector(".song-txt b").textContent = e.artist ? `${e.artist} – ${e.title}` : e.title;
+    li.querySelector(".song-txt span").textContent =
+      `${e.stationName} · ${new Date(e.at).toLocaleString([], { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`;
+
+    const dz = li.querySelector(".dz");
+    // No Deezer match is a real outcome, not an error - say so rather than
+    // offering a link that goes nowhere.
+    if (e.deezer) dz.href = e.deezer;
+    else dz.replaceWith(Object.assign(document.createElement("span"), { className: "song-link off", textContent: "Χωρίς Deezer" }));
+    li.querySelector(".yt").href = e.youtube;
+
+    li.querySelector(".song-del").addEventListener("click", () => {
+      saved = saved.filter((x) => x.key !== e.key);
+      persistSaved();
+      renderSaved();
+      paintSaveButtons();
+    });
+    list.appendChild(li);
+  }
+}
+
+function openSongs() {
+  renderSaved();
+  songsSheet.setAttribute("open", "");
+  document.getElementById("songs-close").focus();
+}
+const closeSongs = () => songsSheet.removeAttribute("open");
+
+document.getElementById("songs-btn").addEventListener("click", openSongs);
+document.getElementById("songs-close").addEventListener("click", closeSongs);
+songsSheet.addEventListener("click", (ev) => {
+  if (ev.target === songsSheet) closeSongs();
+});
+rsSave.addEventListener("click", () => playing && saveSong(playing));
+document.getElementById("mb-save").addEventListener("click", () => radioCh && saveSong(radioCh));
+
 /* --------------------------------------------------------- what's playing */
 async function loadSongs() {
   if (!CHANNELS.some((ch) => ch.audio)) return;
@@ -702,6 +840,7 @@ function repaintSongs() {
     paintPlayerGuide(playing);
   }
   if (radioCh) paintMiniBar();
+  paintSaveButtons();
 }
 
 /** A direct hit usually dies on CORS or mixed content; the relay fixes both. */
@@ -1299,6 +1438,7 @@ render();
 splashDown();
 loadGuide();
 loadSongs();
+persistSaved();
 
 // A /c/<slug> path (or a legacy #ch=<id> hash) opens straight into that
 // channel, so a reload or a shared link lands back on the same one.

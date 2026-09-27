@@ -15,6 +15,7 @@ import epgHandler from "./api/epg.js";
 import nowPlayingHandler from "./api/nowplaying.js";
 import resolveHandler from "./api/resolve.js";
 import streamHandler from "./api/stream.js";
+import trackHandler from "./api/track.js";
 
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
 const PUBLIC_DIR = join(ROOT, "public");
@@ -25,6 +26,7 @@ const ROUTES = {
   "/api/nowplaying": nowPlayingHandler,
   "/api/resolve": resolveHandler,
   "/api/stream": streamHandler,
+  "/api/track": trackHandler,
 };
 
 const MIME = {

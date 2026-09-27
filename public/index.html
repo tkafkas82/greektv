@@ -86,6 +86,10 @@
       <kbd>/</kbd>
     </div>
 
+    <button class="btn songs" id="songs-btn" type="button" aria-haspopup="dialog">
+      <span aria-hidden="true">♥</span> Τραγούδια <span class="n" id="songs-n">0</span>
+    </button>
+
     <button class="btn install" id="install" type="button" hidden>
       <span aria-hidden="true">⬇</span> Εγκατάσταση
     </button>
@@ -196,6 +200,7 @@
           <span class="rs-plate" id="rs-plate" aria-hidden="true"></span>
           <b id="rs-name"></b>
           <span class="rs-now" id="rs-now">—</span>
+          <button class="rs-save" id="rs-save" type="button" hidden></button>
         </div>
 
         <div class="note" id="p-note">
@@ -246,8 +251,26 @@
       <span id="mb-now">—</span>
     </span>
   </button>
+  <button class="mb-btn" id="mb-save" type="button" aria-label="Αποθήκευση τραγουδιού">♥</button>
   <button class="mb-btn" id="mb-toggle" type="button" aria-label="Παύση">⏸</button>
   <button class="mb-btn" id="mb-stop" type="button" aria-label="Διακοπή">✕</button>
+</div>
+
+<!-- Saved songs. Kept in this browser only, like the favourites and the
+     dead-stream memory - there is no account and nothing leaves the device. -->
+<div class="sheet" id="songs" role="dialog" aria-modal="true" aria-labelledby="songs-title">
+  <div class="sheet-box">
+    <div class="sheet-head">
+      <b id="songs-title">Αποθηκευμένα τραγούδια</b>
+      <button class="icon-btn" id="songs-close" type="button" aria-label="Κλείσιμο">
+        <svg aria-hidden="true"><use href="#i-close"></use></svg>
+      </button>
+    </div>
+    <ul id="songs-list"></ul>
+    <p class="sheet-empty" id="songs-empty">
+      Κανένα ακόμη. Πατήστε ♥ όσο παίζει ένα τραγούδι στο ραδιόφωνο.
+    </p>
+  </div>
 </div>
 
 </body>

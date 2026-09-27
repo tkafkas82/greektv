@@ -291,6 +291,7 @@ api/
   epg.js          GET /api/epg     -> what's on now, per channel
   nowplaying.js   GET /api/nowplaying -> what each station is playing
   resolve.js      GET /api/resolve -> current URL for a rotating stream
+  track.js        GET /api/track   -> a played song as a Deezer link
   stream.js       GET /api/stream  -> HLS relay
 scripts/
   refresh-epg-map.mjs
@@ -374,6 +375,38 @@ Channels without a resolver return `404`, and the player only resolves ids liste
 in `RESOLVERS`, so the other 250 cards open with no extra request. A failed
 resolve yields the catalogue URL rather than nothing, so it never trips the
 dead-stream memory on its own.
+
+### `GET /api/track`
+
+`?q=<what a station is playing>` turns the free text a station broadcasts into a
+real track, so a song you liked is saved as a link rather than a string to
+retype:
+
+```json
+{ "query": "CANNONS - FIRE FOR YOU",
+  "track": { "artist": "Cannons", "title": "Fire for You",
+             "deezer": "https://www.deezer.com/track/1033112652", "cover": "…" },
+  "youtube": "https://music.youtube.com/search?q=…" }
+```
+
+**Deezer, because its search needs no credentials at all.** Spotify’s equivalent
+answers `401` without a client id and secret, and YouTube’s Data API answers
+`403` without a key; Deezer answers. It sends no
+`Access-Control-Allow-Origin`, so the page cannot call it directly — hence the
+route. The YouTube Music link is built rather than looked up, since a search URL
+needs no key, and it is the fallback for anyone not on Deezer.
+
+When both halves are present the fielded form (`artist:"…" track:"…"`) is tried
+first, which avoids matching a cover or a remix album, then the plain query.
+Station titles arrive in odd shapes — shouty caps, `Feat.` in the artist — and
+both resolved correctly in testing. No match is a real outcome, not an error: the
+song still saves, with the YouTube link and a **Χωρίς Deezer** marker.
+
+Saved songs live in `localStorage` under `greektv.songs`, like the favourites and
+the dead-stream memory — no account, nothing leaves the device. ♥ on the player
+stage or the radio bar saves what is on; **Τραγούδια** in the header lists them.
+The song is stored the moment you press ♥, before the lookup returns, so a slow
+or failed resolve never loses it — the link is an enrichment, not the point.
 
 ### `GET /api/stream`
 
