@@ -1,4 +1,4 @@
-// Service worker for Greek TV Dial.
+// Service worker for Greek TV & Radio.
 //
 // Deliberately narrow. It caches the app shell so the grid opens instantly and
 // survives a flaky connection, and stays out of the way of everything live:
@@ -23,7 +23,7 @@
 //
 // Bump VERSION to invalidate the shell. Old caches are dropped on activate.
 
-const VERSION = "v3";
+const VERSION = "v4";
 const SHELL = `greektv-shell-${VERSION}`;
 
 const ASSETS = [

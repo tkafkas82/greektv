@@ -1,4 +1,4 @@
-// Channel catalogue for Greek TV Dial.
+// Channel catalogue for Greek TV & Radio.
 //
 // Directory data (name / id / slug / category) was collected from the public
 // category pages of greektv.live, which is also where channels without an open
@@ -34,14 +34,18 @@ export const CATEGORIES = [
   { key: "international", label: "Διεθνή",       hue: 258 },
   { key: "webtv",         label: "Web TV",       hue: 100 },
   { key: "radio",         label: "Ραδιόφωνο",    hue: 358 },
+  { key: "euradio",       label: "Ευρώπη FM",    hue: 12  },
 ];
+
+// Categories whose rows are Icecast audio rather than HLS video.
+const AUDIO = new Set(["radio", "euradio"]);
 
 // Display order for the rail and the grouped grid, by key rather than by index.
 // Radio leads. Each row stores its category as an index into CATEGORIES, so
-// reordering that array would mean rewriting all 257 rows; this keeps the data
+// reordering that array would mean rewriting every row; this keeps the data
 // still and moves only the presentation.
 const DISPLAY_ORDER = [
-  "radio", "national", "sports", "cinema", "kids",
+  "radio", "euradio", "national", "sports", "cinema", "kids",
   "music", "regional", "cyprus", "international", "webtv",
 ];
 
@@ -323,7 +327,30 @@ const ROWS = [
   ["Nitro Radio 98.6",904,"nitro-radio",9,"https://politismedia-sec.live24.gr/streameepride",null,"https://live24.gr/radio/pride986.jsp"],
   ["ERT Kosmos",902,"ert-kosmos",9,"https://radiostreaming.ert.gr/ert-kosmos",null,"https://www.ertecho.gr/radio/kosmos/"],
   ["Best Radio 92.6",903,"best-radio",9,"https://best.live24.gr/best1222",null,"https://best926.gr/"],
-  ["Sport FM 94.6",906,"sport-fm",9,"https://sportfm.live24.gr/sportfm7712",null,"https://live24.gr/radio/sportfm.jsp"]
+  ["Sport FM 94.6",906,"sport-fm",9,"https://sportfm.live24.gr/sportfm7712",null,"https://live24.gr/radio/sportfm.jsp"],
+
+  // European music radio in the spirit of En Lefko: public or independent
+  // stations with a curated, alternative-leaning playlist rather than a chart
+  // rotation. Same rules as the Greek ones - Icecast, https, verified before
+  // going in. None of them needs CORS: the <audio> element carries no
+  // crossorigin attribute, so a media load is never subject to it.
+  //
+  // Mounts are the broadcasters' own entry points, not the CDN edge they
+  // redirect to. RNE, Studio Brussel and FluxFM hand out tokenised edge URLs
+  // that expire, so pinning the edge would break within hours.
+  //
+  // Left out on purpose: BBC 6 Music redirects to bbc.co.uk from outside the
+  // UK, and RTÉ 2XM's mount is a 404.
+  ["Radio 3 (Ισπανία)",907,"rne-radio-3",10,"https://dispatcher.rndfnk.com/crtve/rner3/main/mp3/high",null,"https://www.rtve.es/play/radio/radio-3/"],
+  ["Radar (Πορτογαλία)",908,"radar-lisboa",10,"https://proic1.evspt.com/radar_aac",null,"https://radarlisboa.fm/"],
+  ["Antena 3 (Πορτογαλία)",909,"antena-3",10,"https://radiocast.rtp.pt/antena380a.mp3",null,"https://antena3.rtp.pt/"],
+  ["FIP (Γαλλία)",910,"fip",10,"https://icecast.radiofrance.fr/fip-hifi.aac",null,"https://www.radiofrance.fr/fip"],
+  ["Radio Nova (Γαλλία)",911,"radio-nova",10,"https://novazz.ice.infomaniak.ch/novazz-128.mp3",null,"https://www.nova.fr/"],
+  ["Couleur 3 (Ελβετία)",912,"couleur3",10,"https://stream.srg-ssr.ch/srgssr/couleur3/mp3/128",null,"https://www.rts.ch/couleur3/"],
+  ["Studio Brussel (Βέλγιο)",913,"studio-brussel",10,"https://quantumcast.vrtcdn.be/stubru/mp3-128",null,"https://stubru.be/"],
+  ["KINK (Ολλανδία)",914,"kink",10,"https://playerservices.streamtheworld.com/api/livestream-redirect/KINK.mp3",null,"https://kink.nl/"],
+  ["FM4 (Αυστρία)",915,"fm4",10,"https://orf-live.ors-shoutcast.at/fm4-q2a",null,"https://fm4.orf.at/"],
+  ["FluxFM (Γερμανία)",916,"fluxfm",10,"https://streams.fluxfm.de/Flux/mp3-320/streams.fluxfm.de/",null,"https://www.fluxfm.de/"]
 ];
 
 export const CHANNELS = ROWS.map(([name, id, slug, cat, stream, tvg, site]) => ({
@@ -336,7 +363,7 @@ export const CHANNELS = ROWS.map(([name, id, slug, cat, stream, tvg, site]) => (
   category: CATEGORIES[cat].key,
   hue: CATEGORIES[cat].hue,
   /** True for an Icecast/audio stream rather than an HLS manifest. */
-  audio: CATEGORIES[cat].key === "radio",
+  audio: AUDIO.has(CATEGORIES[cat].key),
   watchUrl: site || `https://www.greektv.live/tv/channel/${id}/${slug}`,
 }));
 

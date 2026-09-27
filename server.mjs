@@ -102,7 +102,7 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Greek TV Dial  ->  http://localhost:${PORT}`);
+  console.log(`Greek TV & Radio  ->  http://localhost:${PORT}`);
   console.log(`  guide:  http://localhost:${PORT}/api/epg`);
   if (!process.env.STREAM_PROXY_SECRET) {
     console.log("  note:   STREAM_PROXY_SECRET unset - cross-host stream segments won't relay");

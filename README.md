@@ -1,7 +1,7 @@
-# Greek TV Dial
+# Greek TV & Radio
 
-All **251 Greek TV channels** plus **6 radio stations** in one grid, grouped into
-ten categories, with the **current programme** for the channels a public guide
+All **251 Greek TV channels** plus **17 radio stations** — 7 Greek and 10
+European music stations — in one grid, grouped into eleven categories, with the **current programme** for the channels a public guide
 covers and **in-app playback** for everything that has an open stream.
 
 No dependencies, no build step. `npm start` runs it; pushing to GitHub and
@@ -23,7 +23,7 @@ deployment. Nothing to install — there is no `node_modules`.
 ## Deploy it
 
 ```bash
-git init && git add -A && git commit -m "Greek TV Dial"
+git init && git add -A && git commit -m "Greek TV & Radio"
 git remote add origin git@github.com:<you>/greektv-dial.git
 git push -u origin main
 ```
@@ -59,7 +59,7 @@ Channels split into two kinds, marked `LIVE` and `WEB` on every card:
   still load inside the frame. You may need to press **Δείτε Τώρα** within it to
   start, which the player says on screen.
 
-### Playback: 71 of 257 channels
+### Playback: 82 of 268 channels
 
 greektv.live does **not** expose its stream URLs. Its channel pages ship
 `"streams":[]` next to an `"encryptedStreams":["YGMGcA6lxqpM0f3…"]` blob that is
@@ -116,16 +116,18 @@ greektv.live link rather than spinning forever.
 ### Defaults
 
 **Μόνο με αναπαραγωγή is checked on load**, so the grid opens on the channels
-that play in-app rather than on all 257. Untick it to see the whole catalogue.
+that play in-app rather than on all 268. Untick it to see the whole catalogue.
 The `checked` attribute in `index.html` and `state.onlyPlayable` in `app.js` have
 to agree — they are the same setting written twice.
 
 Deep links ignore the filter: `/c/ant1` still opens Ant1 even though its card is
 filtered out of the grid.
 
-### Radio: 6 stations
+### Radio: 17 stations
 
-Six stations sit in a tenth category, **Ραδιόφωνο**, and behave like any other
+Seven Greek stations sit in **Ραδιόφωνο** and ten European ones in **Ευρώπη
+FM**. Both categories are audio (`AUDIO` in `channels.js`), and a station
+behaves like any other
 card — search, favourites, deep links, the `LIVE`/`WEB` tag and the dead-stream
 memory all apply unchanged.
 
@@ -137,6 +139,28 @@ memory all apply unchanged.
 | Best Radio 92.6 | `best.live24.gr` | MP3 256k |
 | Nitro Radio 98.6 | `politismedia-sec.live24.gr` | AAC+ 128k |
 | Republic Radio | `netradio.live24.gr` | MP3 128k |
+| Sport FM 94.6 | `sportfm.live24.gr` | MP3 128k |
+
+The European stations were picked for being in the spirit of En Lefko — public
+or independent, curated and alternative-leaning rather than a chart rotation:
+
+| Station | Country | Stream | Format |
+|---|---|---|---|
+| RNE Radio 3 | Spain | `dispatcher.rndfnk.com` | MP3 128k |
+| Radar 97.8 | Portugal (Lisbon) | `proic1.evspt.com` | AAC 192k |
+| RTP Antena 3 | Portugal | `radiocast.rtp.pt` | MP3 |
+| FIP | France | `icecast.radiofrance.fr` | AAC 192k |
+| Radio Nova | France | `novazz.ice.infomaniak.ch` | MP3 128k |
+| RTS Couleur 3 | Switzerland | `stream.srg-ssr.ch` | MP3 128k |
+| Studio Brussel | Belgium | `quantumcast.vrtcdn.be` | MP3 128k |
+| KINK | Netherlands | `playerservices.streamtheworld.com` | MP3 192k |
+| FM4 | Austria | `orf-live.ors-shoutcast.at` | MP3 192k |
+| FluxFM | Germany (Berlin) | `streams.fluxfm.de` | MP3 320k |
+
+Their URLs are the broadcasters' entry points, not the CDN edges those redirect
+to: RNE, Studio Brussel and FluxFM hand out tokenised edge URLs that expire.
+BBC 6 Music was the obvious other pick and is left out because it redirects to
+bbc.co.uk from outside the UK; RTÉ 2XM's mount is a 404.
 
 Two things differ from TV, both in code rather than data:
 
@@ -157,8 +181,9 @@ it came from. Nitro was formerly Pride 98.6, which is why its mount and that pag
 still read “pride”.
 
 Ids start at 900 so they cannot collide with the TV directory, whose highest id
-is 835. All three are https and send `Access-Control-Allow-Origin`, so they play
-straight from the page with no relay.
+is 835. All of them are https and play straight from the page with no relay.
+CORS does not come into it: the `<audio>` element has no `crossorigin`
+attribute, so a media load is never subject to it.
 
 **Radio keeps playing when you close the player.** It runs through its own
 `<audio>` element outside the overlay rather than the `<video>` the TV channels
@@ -173,16 +198,21 @@ rectangle.
 
 ### `GET /api/nowplaying`
 
-What each station is playing, all six in one request, or one with `?ch=<id>`.
+What each station is playing, every station in one request, or one with `?ch=<id>`.
 Two kinds of source, because no single one covers them:
 
 | Source | Stations | How |
 |---|---|---|
-| `icy` | En Lefko, Nitro, Republic | The stream’s own in-band metadata |
-| `json` | Pepper (Radiojar), Best (Attica) | The station’s own endpoint |
-| none | ERT Kosmos | Publishes neither |
+| `icy` | En Lefko, Nitro, Republic, Couleur 3, KINK, FM4 | The stream’s own in-band metadata |
+| `json` | Pepper (Radiojar), Best (Attica), FIP (Radio France livemeta), FluxFM (Radiosphere) | The station’s own endpoint |
+| none | ERT Kosmos, Sport FM, Radio 3, Radar, Antena 3, Nova, Studio Brussel | Publishes neither |
 
-In practice three of the six show a track in production. Best answers with `-`
+Radio 3, Radar, Antena 3 and Nova send an empty `StreamTitle`; Studio Brussel’s
+is only ever its own name. FluxFM’s stream does name the track, but only ~20s in
+after a “FluxFM - Livestream” filler — past the read budget — so it goes through
+its app backend instead.
+
+Among the Greek stations, three show a track in production. Best answers with `-`
 placeholders whenever nothing is queued. Nitro names the track immediately when
 read from Greece but never from Vercel: its stream inserts a preroll ad on the
 connection (`insertionType='preroll'`, ~50s) and `StreamTitle` stays empty for
@@ -467,8 +497,8 @@ npm run export:m3u         # write greektv.m3u for VLC, probing each URL first
 
 ### Channel logos
 
-Every one of the 257 channels has its real logo, stored in `public/logos/` —
-234 files, 1.2 MB, because sub-channels of one broadcaster often share a mark.
+Every one of the 268 channels has its real logo, stored in `public/logos/` —
+245 files, 1.4 MB, because sub-channels of one broadcaster often share a mark.
 `scripts/refresh-logos.mjs` rebuilds both the folder and the `slug -> file` map
 in `public/logos.js`; `npm run refresh:logos:check` reports coverage without
 downloading anything.
@@ -478,15 +508,16 @@ Two sources, because neither covers the whole catalogue:
 - **TV** — the greektv.live `/tv` page ships its whole channel list as an
   embedded JSON payload, one `logo` URL per channel, so all 251 cost a single
   request. The images themselves live in a public GitHub repo.
-- **Radio** — the six stations are not in that directory, so their logos are
-  pinned by hand in the script's `PINNED` table, from each station's own site.
+- **Radio** — the stations are not in that directory, so their logos are
+  pinned by hand in the script's `PINNED` table, from each station's own site
+  or, for most European ones, the Commons file its Wikipedia article uses.
   Half of them are not scrapeable: the page a station is listed on belongs to a
   portal (live24, Attica Radios, ERTecho), whose `og:image` is the portal's own
   logo, so those entries point at the artwork the portal uses for the station
   in its station list. The same table repairs two directory rows whose URL
   404s on a typo upstream (`avant`, `jackson_palace`).
 
-The files are downloaded rather than hot-linked: hot-linking would put 257
+The files are downloaded rather than hot-linked: hot-linking would put 268
 requests to two third parties on the critical path of every visit, and would
 break the grid the day either one moved a file. They are not precached by the
 service worker either — each is cached as it is actually requested, so a first

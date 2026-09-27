@@ -1,4 +1,4 @@
-// Greek TV Dial - grid, search, guide overlay and player.
+// Greek TV & Radio - grid, search, guide overlay and player.
 
 // Root-absolute so a /c/<slug> deep link doesn't resolve this to /c/channels.js.
 import { CHANNELS, CATEGORIES, CATEGORY_ORDER, RELAY_ONLY_HOSTS } from "/channels.js";
@@ -1101,7 +1101,7 @@ async function loadChannel(ch, { push = true } = {}) {
 
   // Reflect the channel in the URL so it survives a reload, can be shared, and
   // gives the browser's Back button something to step through.
-  document.title = `${ch.name} · Greek TV Dial`;
+  document.title = `${ch.name} · Greek TV & Radio`;
   if (push && location.pathname !== channelPath(ch)) {
     history.pushState({ ch: ch.id }, "", channelPath(ch));
   }
@@ -1399,7 +1399,8 @@ function refreshCounts() {
   document.getElementById("rail-note").innerHTML = note;
   document.getElementById("rail-note-mobile").innerHTML = note;
   document.getElementById("tagline").textContent =
-    `${CHANNELS.length} κανάλια · ${n} με απευθείας ροή`;
+    `${CHANNELS.filter((c) => !c.audio).length} κανάλια · ` +
+    `${CHANNELS.filter((c) => c.audio).length} σταθμοί · ${n} με απευθείας ροή`;
 }
 refreshCounts();
 

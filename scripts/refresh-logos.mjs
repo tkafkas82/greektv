@@ -9,8 +9,8 @@
 //      /tv page ships the whole channel list as an embedded JSON payload, one
 //      entry per channel with a `logo` URL, so 251 TV logos cost one request.
 //      The images themselves are hosted in a public GitHub repo.
-//   2. PINNED below - the six radio stations are not in that directory, so their
-//      logos are pinned by hand from each station's own site. See the comments
+//   2. PINNED below - the radio stations are not in that directory, so their
+//      logos are pinned by hand, from each station's own site or Wikipedia. See the comments
 //      on each entry: three of them are not discoverable by scraping, because
 //      the page's og:image is the portal's logo rather than the station's.
 //      The same map also repairs the handful of directory rows whose logo URL
@@ -62,6 +62,25 @@ const PINNED = {
   // ΣΠΟΡ FM mark sits in the middle, which is the part a wide plate keeps.
   "sport-fm": "https://www.sport-fm.gr/resrc/images/logos/logo-normal_v3.png",
 
+  // European stations. Where the station has a Wikipedia article, its logo is
+  // the Commons file that article uses, as the 330px PNG render - the stations'
+  // own sites mostly offer only a favicon or the parent broadcaster's mark
+  // (rtve.es, vrt.be and rtp.pt all do). The rest come from the station's site.
+  "rne-radio-3": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/RNE_Radio_3_2026.svg/330px-RNE_Radio_3_2026.svg.png",
+  // <link rel="icon"> on radarlisboa.fm, the yellow RADAR 97.8fm square.
+  "radar-lisboa": "https://radarlisboa.fm/wp-content/uploads/2016/02/icone_teste-1.png",
+  "antena-3": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/RTP_Antena_3_2026.svg/330px-RTP_Antena_3_2026.svg.png",
+  fip: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/FIP_logo_2021.svg/330px-FIP_logo_2021.svg.png",
+  "radio-nova": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/Radio_Nova_2024.svg/330px-Radio_Nova_2024.svg.png",
+  couleur3: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/RTS_Couleur_3_2024.svg/330px-RTS_Couleur_3_2024.svg.png",
+  "studio-brussel":
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/9/98/Studio_Brussel_logo_(2023-).svg/330px-Studio_Brussel_logo_(2023-).svg.png",
+  // apple-touch-icon on kink.nl, the white K on black.
+  kink: "https://kink.nl/static/apple-touch-icon.png",
+  fm4: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/FM4.svg/330px-FM4.svg.png",
+  // fluxfm.de's own icons are a bare yellow tab with no lettering.
+  fluxfm: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/FluxFM.svg/330px-FluxFM.svg.png",
+
   // Two directory rows point at a file that is not in the asset repo, both off
   // by a letter: it holds avanti.webp and jakson_palace.webp, while the
   // directory asks for avant.webp and jackson_palace.webp. The images exist, so
@@ -72,7 +91,14 @@ const PINNED = {
     "https://raw.githubusercontent.com/nickstamp93/GymWorkoutMate/i/app/src/main/assets/img/ch/jakson_palace.webp",
 };
 
-const UA = { "user-agent": "Mozilla/5.0 (compatible; greektv-dial/1.0)" };
+// Banners that must be shown whole rather than cropped to their middle. Each
+// is a wordmark across the full width - "FLUX FM", "RTP antena 3", "radio
+// nova" - so a cropped plate would show half a word, and a thin whole logo
+// reads better.
+const NO_CROP = new Set([PINNED.fluxfm, PINNED["antena-3"], PINNED["radio-nova"]]);
+
+// Wikimedia asks for a descriptive user agent and answers a bare one with 429.
+const UA = { "user-agent": "greektv-dial/1.0 (logo refresh; https://github.com/tkafkas82/greektv)" };
 
 /** id -> logo URL, from the JSON the directory's /tv page embeds in its markup. */
 async function fetchDirectoryLogos() {
@@ -157,7 +183,13 @@ function dimensions(buf) {
 }
 
 async function download(url) {
-  const res = await fetch(url, { headers: UA });
+  let res = await fetch(url, { headers: UA });
+  // upload.wikimedia.org rate-limits bursts; one patient retry is enough for
+  // the handful of files this script asks it for.
+  for (let n = 0; res.status === 429 && n < 3; n++) {
+    await new Promise((r) => setTimeout(r, 5000 * (n + 1)));
+    res = await fetch(url, { headers: UA });
+  }
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const type = (res.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
   const ext = EXT_BY_TYPE[type];
@@ -167,7 +199,7 @@ async function download(url) {
   const size = dimensions(bytes);
   // A plate is square. Fitting a banner inside one leaves a sliver a few pixels
   // tall, so anything this wide is marked for the plate to crop instead.
-  const wide = Boolean(size && size.w / size.h >= 2);
+  const wide = Boolean(size && size.w / size.h >= 2) && !NO_CROP.has(url);
   return { bytes, ext, wide };
 }
 

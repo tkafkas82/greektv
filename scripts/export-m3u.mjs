@@ -134,7 +134,7 @@ const safeName = (s) =>
 const suffix = check ? " (verified)" : "";
 
 if (split === "one") {
-  await writeFile(OUT, playlist(live, `Greek TV Dial${suffix}`, { dividers: true }), "utf8");
+  await writeFile(OUT, playlist(live, `Greek TV & Radio${suffix}`, { dividers: true }), "utf8");
   console.log(`Wrote ${live.length} channels to ${OUT}`);
 } else if (split === "channel") {
   const dir = join(DIR, "channels");

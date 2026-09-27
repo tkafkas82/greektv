@@ -2,7 +2,7 @@
 // GET /api/nowplaying?ch=<id>    -> one of them
 //
 // What a station is playing right now. Two kinds of source, because no single
-// one covers the six:
+// one covers them all:
 //
 //   icy  - the stream's own in-band metadata. Requires Icy-MetaData: 1, then
 //          reading icy-metaint bytes of audio before each metadata block. The
@@ -61,6 +61,38 @@ const SOURCES = {
   902: { kind: "none" },
   // Sport FM is talk and commentary, and its stream sends icy-metaint: 0.
   906: { kind: "none" },
+
+  // Europe. RNE Radio 3, Radar, Antena 3 and Nova all send StreamTitle='' or no
+  // title block at all, and Studio Brussel's in-band title is only ever its own
+  // name - so none of those five have a source.
+  907: { kind: "none" },
+  908: { kind: "none" },
+  909: { kind: "none" },
+  911: { kind: "none" },
+  913: { kind: "none" },
+  // FIP's stream carries no metadata, but Radio France's livemeta feed is public
+  // and sends Access-Control-Allow-Origin: *. Station 7 is FIP. It returns a
+  // short timeline of steps; the one spanning now is what is on air.
+  910: {
+    kind: "json",
+    url: "https://api.radiofrance.fr/livemeta/pull/7",
+    pick: (d) => {
+      const now = Date.now() / 1000;
+      const step = Object.values(d.steps || {}).find((st) => st.start <= now && now < st.end);
+      if (!step || step.embedType !== "song") return { artist: "", title: "" };
+      const artist = (step.highlightedArtists || []).join(", ") || step.authors || step.performers;
+      return { artist, title: step.title };
+    },
+  },
+  // FluxFM's in-band title is mostly "FluxFM - Livestream", with the track
+  // only showing up ~20s into the stream - past ICY_TIMEOUT_MS. Its app backend
+  // (Radiosphere) has a public current-track endpoint instead; the id is the
+  // FluxFM channel's own.
+  916: {
+    kind: "json",
+    url: "https://fluxmusic.api.radiosphere.io/channels/7efc3ff2-4804-431f-aaa9-7d1f8a7727c7/current-track",
+    pick: (d) => ({ artist: d.trackInfo?.artistCredits, title: d.trackInfo?.title }),
+  },
 };
 
 /** channel id -> { at, entry } */
