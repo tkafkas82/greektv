@@ -249,9 +249,13 @@ The worker is deliberately narrow:
 - **Cross-origin is passed straight through.** Streams, segments and fonts are
   someone else’s bytes; caching megabytes of live video per viewer would be
   worse than useless.
-- Navigations go to the network first and fall back to the cached shell, so a
-  deploy is picked up immediately. `/sw.js` is served `must-revalidate` so a
-  stale worker can’t pin an old build.
+- **Everything same-origin is network-first with a cache fallback, not
+  cache-first.** Cache-first pinned `/app.js` and `/styles.css` to whatever was
+  cached on the first visit while navigations kept fetching fresh HTML, so a
+  deploy produced a page running new markup against old script — which looks
+  like a UI bug and is not one. The cache is for going offline, not for speed.
+- `/sw.js` is served `must-revalidate` so a stale worker can’t pin an old build,
+  and a tab whose worker is replaced reloads itself unless a stream is playing.
 
 Bump `VERSION` in `sw.js` to invalidate the shell.
 

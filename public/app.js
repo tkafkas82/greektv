@@ -1220,6 +1220,22 @@ function initPwa() {
   paintSplash();
 
   if ("serviceWorker" in navigator) {
+    // True only when a worker is already in charge, i.e. this is a repeat
+    // visit. On a first install the page is already running what the new worker
+    // would serve, so there is nothing to reload for.
+    const hadController = Boolean(navigator.serviceWorker.controller);
+    let reloading = false;
+
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (!hadController || reloading) return;
+      // Don't yank a running stream out from under the viewer; assets are
+      // network-first now, so the next ordinary load picks the new build up
+      // anyway. This only makes the current tab catch up sooner.
+      if (radioCh || player.hasAttribute("open")) return;
+      reloading = true;
+      location.reload();
+    });
+
     // After load, so the worker never competes with the first paint or the
     // guide request for bandwidth.
     window.addEventListener("load", () => {

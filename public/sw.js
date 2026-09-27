@@ -11,9 +11,15 @@
 //     viewer would be worse than useless.
 //   - Only GET is touched.
 //
+// Everything same-origin is network-first with a cache fallback, NOT cache-first.
+// Cache-first pinned /app.js and /styles.css to whatever was cached on the first
+// visit while navigations kept fetching fresh HTML, so a deploy produced a page
+// running new markup against old script - which looks like a UI bug and is not
+// one. The cache here is for going offline, not for speed.
+//
 // Bump VERSION to invalidate the shell. Old caches are dropped on activate.
 
-const VERSION = "v1";
+const VERSION = "v2";
 const SHELL = `greektv-shell-${VERSION}`;
 
 const ASSETS = [
@@ -57,33 +63,20 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.startsWith("/api/")) return;
 
   // Navigations, including every /c/<slug> deep link, resolve to the same
-  // document. Try the network so a deploy is picked up, and fall back to the
-  // cached shell when offline - falling back to "/" rather than the requested
-  // path, because that path was never cached under its own URL.
-  if (req.mode === "navigate") {
-    event.respondWith(
-      fetch(req)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(SHELL).then((c) => c.put("/", copy)).catch(() => {});
-          return res;
-        })
-        .catch(() => caches.match("/").then((hit) => hit || Response.error()))
-    );
-    return;
-  }
+  // document. Cache under "/" rather than the requested path, because a deep
+  // link was never cached under its own URL.
+  const isNav = req.mode === "navigate";
+  const key = isNav ? "/" : req;
 
   event.respondWith(
-    caches.match(req).then(
-      (hit) =>
-        hit ||
-        fetch(req).then((res) => {
-          if (res.ok && res.type === "basic") {
-            const copy = res.clone();
-            caches.open(SHELL).then((c) => c.put(req, copy)).catch(() => {});
-          }
-          return res;
-        })
-    )
+    fetch(req)
+      .then((res) => {
+        if (res.ok && (isNav || res.type === "basic")) {
+          const copy = res.clone();
+          caches.open(SHELL).then((c) => c.put(key, copy)).catch(() => {});
+        }
+        return res;
+      })
+      .catch(() => caches.match(key).then((hit) => hit || Response.error()))
   );
 });
