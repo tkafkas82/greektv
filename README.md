@@ -160,8 +160,41 @@ Ids start at 900 so they cannot collide with the TV directory, whose highest id
 is 835. All three are https and send `Access-Control-Allow-Origin`, so they play
 straight from the page with no relay.
 
-The player still shows a black video box while a station plays — the audio works,
-but the stage has no audio-specific treatment yet.
+**Radio keeps playing when you close the player.** It runs through its own
+`<audio>` element outside the overlay rather than the `<video>` the TV channels
+use, so `teardown()` can clear the stage without silencing it. What is left
+behind is a mini bar — station, current track, play/pause, stop — which reopens
+the player when tapped and is hidden while the overlay is up. Opening any other
+channel takes the audio over; reopening the station already playing does not
+restart the stream, which would only put a gap in live audio.
+
+The stage itself shows the station and its current track instead of a black
+rectangle.
+
+### `GET /api/nowplaying`
+
+What each station is playing, all six in one request, or one with `?ch=<id>`.
+Two kinds of source, because no single one covers them:
+
+| Source | Stations | How |
+|---|---|---|
+| `icy` | En Lefko, Nitro, Republic | The stream’s own in-band metadata |
+| `json` | Pepper (Radiojar), Best (Attica) | The station’s own endpoint |
+| none | ERT Kosmos | Publishes neither |
+
+In-band metadata needs an `Icy-MetaData: 1` request, then reading `icy-metaint`
+bytes of audio before each metadata block and parsing `StreamTitle`. **The
+browser’s media element exposes none of this**, which is why it has to happen
+server-side. The read is bounded by bytes and by a timeout, because a station
+that never sends a title would otherwise be read forever.
+
+Answers are cached in module scope for 25 seconds: an `icy` lookup opens a real
+connection and pulls audio until a title appears, so polling it per viewer would
+be both rude to the station and slow. The client polls every 35 seconds and
+paints the result in three places — the card (radio has no Digea guide, so the
+track takes that line), the player, and the mini bar.
+
+A station with nothing to report shows an em dash rather than a guess.
 
 ### Guide: 56 of 251 channels
 
@@ -233,6 +266,7 @@ lib/
   epg.js          10-minute cache, now/next resolution
 api/
   epg.js          GET /api/epg     -> what's on now, per channel
+  nowplaying.js   GET /api/nowplaying -> what each station is playing
   resolve.js      GET /api/resolve -> current URL for a rotating stream
   stream.js       GET /api/stream  -> HLS relay
 scripts/

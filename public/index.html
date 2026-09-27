@@ -190,6 +190,14 @@
                 allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
                 referrerpolicy="no-referrer-when-downgrade"></iframe>
 
+        <!-- Radio has no picture. Rather than leave a black rectangle, the
+             stage shows the station and what it is playing. -->
+        <div class="radio-stage" id="p-radio" hidden>
+          <span class="rs-plate" id="rs-plate" aria-hidden="true"></span>
+          <b id="rs-name"></b>
+          <span class="rs-now" id="rs-now">—</span>
+        </div>
+
         <div class="note" id="p-note">
           <div>
             <div class="spin" id="p-spin" aria-hidden="true"></div>
@@ -226,5 +234,21 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.17/hls.min.js"></script>
 <script type="module" src="/app.js"></script>
+<!-- Radio plays through its own element, outside the overlay, so closing the
+     player does not stop the audio. The bar below is what is left behind. -->
+<audio id="radio" preload="none"></audio>
+
+<div class="minibar" id="minibar" hidden>
+  <button class="mb-open" id="mb-open" type="button" aria-label="Άνοιγμα παίκτη">
+    <span class="mb-plate" id="mb-plate" aria-hidden="true"></span>
+    <span class="mb-txt">
+      <b id="mb-name"></b>
+      <span id="mb-now">—</span>
+    </span>
+  </button>
+  <button class="mb-btn" id="mb-toggle" type="button" aria-label="Παύση">⏸</button>
+  <button class="mb-btn" id="mb-stop" type="button" aria-label="Διακοπή">✕</button>
+</div>
+
 </body>
 </html>

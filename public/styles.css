@@ -390,6 +390,54 @@ button{font:inherit; color:inherit}
 .player-foot .v{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .player-foot .v.dim{color:var(--muted); font-style:italic}
 
+/* ---------------- radio: stage panel and persistent mini bar ---------------- */
+/* Radio has no picture, so the stage shows who is on and what is playing. */
+.radio-stage{
+  position:absolute; inset:0; display:grid; place-content:center; justify-items:center;
+  gap:12px; padding:24px; text-align:center; background:var(--surface);
+}
+.rs-plate{
+  width:76px; height:76px; border-radius:10px; display:grid; place-items:center;
+  font-family:var(--mono); font-weight:600; font-size:24px;
+  color:hsl(var(--h) 60% 92%); background:hsl(var(--h) 45% 26%);
+}
+.radio-stage b{font-size:18px}
+.rs-now{color:var(--muted); font-size:14px; max-width:36ch; line-height:1.45}
+
+/* The bar is what survives closing the player. */
+.minibar{
+  position:fixed; left:12px; right:12px; bottom:12px; z-index:40;
+  display:flex; align-items:center; gap:8px;
+  padding:8px; border-radius:10px;
+  background:var(--surface); border:1px solid var(--line);
+  box-shadow:0 10px 30px rgb(0 0 0 / .22);
+}
+.minibar[hidden]{display:none}
+
+.mb-open{
+  flex:1; min-width:0; display:flex; align-items:center; gap:10px;
+  background:none; border:0; padding:2px; cursor:pointer; text-align:left; color:inherit;
+}
+.mb-plate{
+  flex:none; width:34px; height:34px; border-radius:6px; display:grid; place-items:center;
+  font-family:var(--mono); font-weight:600; font-size:12px;
+  color:hsl(var(--h) 60% 92%); background:hsl(var(--h) 45% 26%);
+}
+.mb-txt{display:grid; min-width:0; line-height:1.3}
+.mb-txt b{font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.mb-txt span{font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+
+.mb-btn{
+  flex:none; width:34px; height:34px; border-radius:6px; cursor:pointer;
+  background:var(--bg); border:1px solid var(--line-2); color:var(--ink-2); font-size:13px;
+}
+.mb-btn:hover{border-color:var(--accent); color:var(--ink)}
+.mb-open:focus-visible, .mb-btn:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+@media (max-width: 880px){
+  .minibar{left:8px; right:8px; bottom:8px}
+}
+
 /* ---------------- PWA: launch splash and install button ---------------- */
 /* Hidden in a browser tab and shown only in an installed window, so a normal
    visit never flashes it. app.js removes the node once the grid is up. */

@@ -6,6 +6,9 @@ import { RESOLVERS, acceptableUrl } from "/resolvers.js";
 
 const EPG_REFRESH_MS = 5 * 60 * 1000;
 const TICK_MS = 30 * 1000;
+// Tracks change far faster than programmes, but each poll reads a live stream
+// server-side, so this is as tight as is polite to the stations.
+const SONG_REFRESH_MS = 35 * 1000;
 // How long a stream stays written off after it fails. Public IPTV URLs come
 // back as often as they go away, so this is a memory with a short fuse, not a
 // permanent verdict.
@@ -215,6 +218,18 @@ function paintFav(btn, on) {
 function paintNow(el, ch) {
   const nowEl = el.querySelector(".now");
   const progEl = el.querySelector(".prog");
+
+  // Radio is not in Digea's guide and never will be, so the song takes the slot
+  // the programme title would occupy. There is no progress bar to draw.
+  if (ch.audio) {
+    const song = songs.get(ch.id);
+    progEl.hidden = true;
+    nowEl.className = song && song.text ? "now" : "now none";
+    nowEl.textContent = song && song.text ? song.text : "—";
+    nowEl.title = song && song.text ? song.text : "";
+    return;
+  }
+
   const entry = guide.get(ch.id);
   const now = entry && entry.now;
 
@@ -426,11 +441,23 @@ const noteTitle = document.getElementById("p-note-title");
 const noteBody = document.getElementById("p-note-body");
 const spinner = document.getElementById("p-spin");
 const embedNote = document.getElementById("p-embed-note");
+const radio = document.getElementById("radio");
+const radioStage = document.getElementById("p-radio");
+const minibar = document.getElementById("minibar");
 const switchList = document.getElementById("p-switch-list");
 const switchCount = document.getElementById("p-switch-count");
 
 let hls = null;
 let playing = null;
+/**
+ * The station loaded into the persistent <audio>. It outlives the overlay on
+ * purpose - closing the player leaves the radio running and the mini bar up -
+ * so it is tracked separately from `playing`, which is only what the overlay is
+ * currently showing.
+ */
+let radioCh = null;
+/** channel id -> { artist, title, text } from /api/nowplaying */
+let songs = new Map();
 /** The URL actually attached, which for a resolved channel is not ch.stream. */
 let playingUrl = null;
 let usedRelay = false;
@@ -494,17 +521,29 @@ function teardown() {
   frame.hidden = true;
   video.hidden = false;
   embedNote.hidden = true;
+  // Deliberately does not stop `radio`: teardown clears the visual stage, and
+  // the radio element is meant to survive both a channel switch and a close.
+  radioStage.hidden = true;
 }
 
 function attach(url, { audio = false } = {}) {
   teardown();
 
   // Radio is a continuous Icecast stream, not a manifest - hls.js would reject
-  // it outright. The media element plays mp3 and aac natively, so hand it over
-  // and let the "playing" listener clear the note.
+  // it outright. It also plays through its own element outside the overlay, so
+  // that closing the player leaves the sound on.
   if (audio) {
-    video.src = url;
-    video.play().catch(() => {});
+    radioCh = playing;
+    // Re-attaching the same URL would restart the stream, which for live radio
+    // is a pointless gap in the audio.
+    if (radio.getAttribute("src") !== url) {
+      radio.src = url;
+      radio.play().catch(() => {});
+    } else if (radio.paused) {
+      radio.play().catch(() => {});
+    }
+    showRadioStage();
+    paintMiniBar();
     return;
   }
 
@@ -554,6 +593,98 @@ function attach(url, { audio = false } = {}) {
   failed("Ο browser δεν υποστηρίζει HLS");
 }
 
+/* ------------------------------------------------------------- radio bar */
+/** What a station is playing, or an em dash when nothing is published. */
+const songText = (ch) => {
+  const song = songs.get(ch.id);
+  return song && song.text ? song.text : "—";
+};
+
+function showRadioStage() {
+  video.hidden = true;
+  frame.hidden = true;
+  radioStage.hidden = false;
+  document.getElementById("rs-plate").textContent = playing ? playing.initials : "";
+  document.getElementById("rs-name").textContent = playing ? playing.name : "";
+  document.getElementById("rs-now").textContent = playing ? songText(playing) : "—";
+  hideNote();
+}
+
+/** The bar shows only when a station is loaded and the overlay is not up. */
+function paintMiniBar() {
+  if (!radioCh) {
+    minibar.hidden = true;
+    return;
+  }
+  minibar.hidden = player.hasAttribute("open");
+  minibar.style.setProperty("--h", CATEGORIES[radioCh.cat].hue);
+  document.getElementById("mb-plate").textContent = radioCh.initials;
+  document.getElementById("mb-name").textContent = radioCh.name;
+  document.getElementById("mb-now").textContent = songText(radioCh);
+
+  const toggle = document.getElementById("mb-toggle");
+  toggle.textContent = radio.paused ? "▶" : "⏸";
+  toggle.setAttribute("aria-label", radio.paused ? "Αναπαραγωγή" : "Παύση");
+}
+
+/** Stop the radio outright - switching to another channel, or the ✕ button. */
+function stopRadio() {
+  if (!radioCh) return;
+  radio.pause();
+  radio.removeAttribute("src");
+  radio.load();
+  radioCh = null;
+  minibar.hidden = true;
+}
+
+document.getElementById("mb-toggle").addEventListener("click", () => {
+  if (radio.paused) radio.play().catch(() => {});
+  else radio.pause();
+  paintMiniBar();
+});
+document.getElementById("mb-stop").addEventListener("click", stopRadio);
+document.getElementById("mb-open").addEventListener("click", () => {
+  if (radioCh) openPlayer(radioCh);
+});
+radio.addEventListener("play", paintMiniBar);
+radio.addEventListener("pause", paintMiniBar);
+radio.addEventListener("error", () => {
+  // Only meaningful while a station is actually loaded; removeAttribute("src")
+  // in stopRadio() raises a synthetic error we must ignore.
+  if (!radioCh || !radio.getAttribute("src")) return;
+  if (playing && playing.id === radioCh.id) retryOrFail("Η ροή δεν αποκρίνεται");
+  else stopRadio();
+});
+
+/* --------------------------------------------------------- what's playing */
+async function loadSongs() {
+  if (!CHANNELS.some((ch) => ch.audio)) return;
+  try {
+    const res = await fetch("/api/nowplaying", { headers: { accept: "application/json" } });
+    const data = await res.json();
+    songs = new Map(
+      Object.entries(data.stations || {}).map(([id, v]) => [Number(id), v]).filter(([, v]) => v)
+    );
+  } catch {
+    // Leave the previous answer in place; a blip shouldn't blank every title.
+    return;
+  }
+  repaintSongs();
+}
+
+/** Push fresh titles into the three places they appear. */
+function repaintSongs() {
+  for (const el of out.querySelectorAll(".ch")) {
+    const ch = CHANNELS.find((c) => c.id === Number(el.dataset.id));
+    if (ch && ch.audio) paintNow(el, ch);
+  }
+  if (playing && playing.audio) {
+    document.getElementById("rs-now").textContent = songText(playing);
+    paintPlayerGuide(playing);
+  }
+  if (radioCh) paintMiniBar();
+}
+
 /** A direct hit usually dies on CORS or mixed content; the relay fixes both. */
 function retryOrFail(reason) {
   if (!usedRelay && playing) {
@@ -589,6 +720,15 @@ function paintPlayerGuide(ch) {
   const entry = guide.get(ch.id);
   const nowEl = document.getElementById("p-now");
   const nextEl = document.getElementById("p-next");
+
+  if (ch.audio) {
+    const song = songs.get(ch.id);
+    nowEl.className = song && song.text ? "v" : "v dim";
+    nowEl.textContent = song && song.text ? song.text : "—";
+    nextEl.className = "v dim";
+    nextEl.textContent = song && song.artist ? song.artist : "—";
+    return;
+  }
 
   if (entry && entry.now) {
     nowEl.className = "v";
@@ -722,6 +862,8 @@ async function resolveStream(ch) {
  */
 async function loadChannel(ch, { push = true } = {}) {
   teardown();
+  // Anything other than the station already loaded takes over the audio.
+  if (radioCh && (!ch.audio || ch.id !== radioCh.id)) stopRadio();
   playing = ch;
   playingUrl = ch.stream;
   usedRelay = false;
@@ -831,6 +973,7 @@ function openPlayer(ch, { push = true } = {}) {
   playing = ch;
   player.setAttribute("open", "");
   document.body.style.overflow = "hidden";
+  minibar.hidden = true;
   buildSwitcher();
   loadChannel(ch, { push });
   document.getElementById("p-close").focus();
@@ -843,6 +986,8 @@ function closePlayer({ push = true } = {}) {
   playing = null;
   playingUrl = null;
   hideNote();
+  // teardown() left the radio running on purpose; the bar takes it from here.
+  paintMiniBar();
   document.title = BASE_TITLE;
   if (push && channelFromUrl()) history.pushState({}, "", "/");
   if (lastFocus && lastFocus.isConnected) lastFocus.focus();
@@ -1098,6 +1243,7 @@ buildRail();
 render();
 splashDown();
 loadGuide();
+loadSongs();
 
 // A /c/<slug> path (or a legacy #ch=<id> hash) opens straight into that
 // channel, so a reload or a shared link lands back on the same one.
@@ -1113,6 +1259,7 @@ if (deepLinked) {
 }
 
 setInterval(loadGuide, EPG_REFRESH_MS);
+setInterval(loadSongs, SONG_REFRESH_MS);
 // Progress bars creep forward between guide fetches.
 setInterval(() => {
   if (!guide.size) return;
