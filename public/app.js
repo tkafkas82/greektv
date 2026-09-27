@@ -1,7 +1,7 @@
 // Greek TV Dial - grid, search, guide overlay and player.
 
 // Root-absolute so a /c/<slug> deep link doesn't resolve this to /c/channels.js.
-import { CHANNELS, CATEGORIES, RELAY_ONLY_HOSTS } from "/channels.js";
+import { CHANNELS, CATEGORIES, CATEGORY_ORDER, RELAY_ONLY_HOSTS } from "/channels.js";
 import { RESOLVERS, acceptableUrl } from "/resolvers.js";
 
 const EPG_REFRESH_MS = 5 * 60 * 1000;
@@ -298,10 +298,11 @@ function render() {
   } else {
     const pinned = list.filter((ch) => favs.has(ch.id));
     if (pinned.length) frag.appendChild(section("Αγαπημένα", null, pinned));
-    CATEGORIES.forEach((cat, index) => {
+    for (const index of CATEGORY_ORDER) {
+      const cat = CATEGORIES[index];
       const group = list.filter((ch) => ch.cat === index && !favs.has(ch.id));
       if (group.length) frag.appendChild(section(cat.label, cat.hue, group));
-    });
+    }
   }
 
   out.innerHTML = "";
@@ -335,9 +336,9 @@ const catsEl = document.getElementById("cats");
 function buildRail() {
   const rows = [
     { label: "Όλα τα κανάλια", hue: null, index: null, n: CHANNELS.length },
-    ...CATEGORIES.map((cat, index) => ({
-      label: cat.label,
-      hue: cat.hue,
+    ...CATEGORY_ORDER.map((index) => ({
+      label: CATEGORIES[index].label,
+      hue: CATEGORIES[index].hue,
       index,
       n: CHANNELS.filter((ch) => ch.cat === index).length,
     })),

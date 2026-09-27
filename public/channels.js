@@ -36,6 +36,21 @@ export const CATEGORIES = [
   { key: "radio",         label: "Ραδιόφωνο",    hue: 358 },
 ];
 
+// Display order for the rail and the grouped grid, by key rather than by index.
+// Radio leads. Each row stores its category as an index into CATEGORIES, so
+// reordering that array would mean rewriting all 257 rows; this keeps the data
+// still and moves only the presentation.
+const DISPLAY_ORDER = [
+  "radio", "national", "sports", "cinema", "kids",
+  "music", "regional", "cyprus", "international", "webtv",
+];
+
+export const CATEGORY_ORDER = DISPLAY_ORDER.map((key) => {
+  const i = CATEGORIES.findIndex((cat) => cat.key === key);
+  if (i < 0) throw new Error(`DISPLAY_ORDER names a category that does not exist: ${key}`);
+  return i;
+});
+
 const ROWS = [
   ["ERT 1",1,"ert-1",0,null,null],
   ["ERT 2 Sports",2,"ert-2-sports",0,null,null],
