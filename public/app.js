@@ -1,7 +1,7 @@
 // Greek TV Dial - grid, search, guide overlay and player.
 
 // Root-absolute so a /c/<slug> deep link doesn't resolve this to /c/channels.js.
-import { CHANNELS, CATEGORIES } from "/channels.js";
+import { CHANNELS, CATEGORIES, RELAY_ONLY_HOSTS } from "/channels.js";
 import { RESOLVERS, acceptableUrl } from "/resolvers.js";
 
 const EPG_REFRESH_MS = 5 * 60 * 1000;
@@ -114,7 +114,7 @@ const state = {
   query: "",
   category: null,
   sort: "cat",
-  onlyPlayable: false,
+  onlyPlayable: true,
   onlyGuide: false,
 };
 
@@ -439,6 +439,16 @@ let reel = [];
 
 const relayUrl = (url) => `/api/stream?u=${encodeURIComponent(url)}`;
 
+/** True when this host is known to refuse a fetch made from the page. */
+function relayOnly(url) {
+  if (!RELAY_ONLY_HOSTS.size) return false;
+  try {
+    return RELAY_ONLY_HOSTS.has(new URL(url).host.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
 /* ---- routing ------------------------------------------------------------
    /c/<slug> is the canonical deep link. #ch=<id> is kept working because it
    was the first scheme shipped and may already be bookmarked. Both accept an
@@ -731,8 +741,11 @@ async function loadChannel(ch, { push = true } = {}) {
     if (playing !== ch) return;
     playingUrl = url;
 
-    // http streams can never load on an https page - go straight to the relay.
-    const mustRelay = url.startsWith("http://") && location.protocol === "https:";
+    // Skip a direct attempt that cannot work: an http stream never loads on an
+    // https page, and a host in RELAY_ONLY_HOSTS refuses the page outright.
+    // Either way, going straight to the relay saves the viewer a timeout.
+    const mustRelay =
+      (url.startsWith("http://") && location.protocol === "https:") || relayOnly(url);
     if (mustRelay) usedRelay = true;
     attach(mustRelay ? relayUrl(url) : url);
     return;

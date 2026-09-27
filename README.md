@@ -59,7 +59,7 @@ Channels split into two kinds, marked `LIVE` and `WEB` on every card:
   still load inside the frame. You may need to press **Δείτε Τώρα** within it to
   start, which the player says on screen.
 
-### Playback: 66 of 251 channels
+### Playback: 65 of 251 channels
 
 greektv.live does **not** expose its stream URLs. Its channel pages ship
 `"streams":[]` next to an `"encryptedStreams":["YGMGcA6lxqpM0f3…"]` blob that is
@@ -68,9 +68,22 @@ embedding the streams. Those streams are therefore not used here at all.
 
 Instead, streams come from the **openly published
 [iptv-org Greek playlist](https://iptv-org.github.io/iptv/countries/gr.m3u)**.
-Matching its 71 entries against the catalogue by name yields **65 channels** with
-a playable HLS URL, marked `LIVE`. The other 185 fall back to the embedded page
-described above, so they still play without leaving the grid.
+Matching its 71 entries against the catalogue by name yields 65 channels with a
+playable HLS URL, minus Ant1 (below) and plus Open Beyond, so **65** are marked
+`LIVE`. The other 186 fall back to the embedded page described above, so they
+still play without leaving the grid.
+
+**Ant1 is deliberately `null`** although iptv-org lists a URL for it. Two
+separate things block it, and neither is fixable in code:
+
+- The stream is geo-restricted to Greece. The relay runs in Vercel’s Frankfurt
+  region and gets a `403`; the same URL returns `200` from Greece. Vercel has no
+  Greek region.
+- The browser can’t fetch it directly either — that CDN rejects our `Origin`.
+
+Keeping the URL only bought viewers a timeout before the embed loaded, so the
+entry is `null` and Ant1 goes straight to its embedded page. Running the server
+from inside Greece (`npm start`) does play it, via the relay.
 
 One channel is added on top of that: **Open Beyond**, which iptv-org does not
 carry. Its broadcaster publishes the current manifest itself, from the JSON the
@@ -79,8 +92,8 @@ Because that URL rotates, the catalogue entry is only a fallback and the live on
 is fetched at play time — see [`GET /api/resolve`](#get-apiresolve).
 
 **Public IPTV URLs rot, so the app learns which ones are dead.** A probe of all
-65 at the time of writing found **13 already gone** — Ant1 on `403` (since
-traced to a referer mismatch in the relay, not a dead URL; see below), both ERT
+65 at the time of writing found **13 already gone** — Ant1 on `403` (see below),
+both ERT
 Sports feeds timing out, four `404`s, two `500`s, two rejected certificate
 chains and two unreachable hosts. Rather than freeze that verdict into the
 catalogue (a browser may succeed where the probe didn't, and hosts recover), the
@@ -99,6 +112,16 @@ The memory is per browser and never leaves it.
 
 Public IPTV URLs rot. When one dies the player says so and offers the
 greektv.live link rather than spinning forever.
+
+### Defaults
+
+**Μόνο με αναπαραγωγή is checked on load**, so the grid opens on the channels
+that play in-app rather than on all 251. Untick it to see the whole catalogue.
+The `checked` attribute in `index.html` and `state.onlyPlayable` in `app.js` have
+to agree — they are the same setting written twice.
+
+Deep links ignore the filter: `/c/ant1` still opens Ant1 even though its card is
+filtered out of the grid.
 
 ### Guide: 56 of 251 channels
 
@@ -245,6 +268,12 @@ default. Ant1’s CDN answers `200` to `watch.antennaplus.gr` and `403` to
 the per-host value (taken from the iptv-org playlist’s `http-referrer` hints),
 and `Origin` is derived from whichever referer is used so the pair can never
 disagree — a mismatch is itself grounds for a `403` on these edges.
+
+`RELAY_ONLY_HOSTS` in `public/channels.js` lets the player skip a direct attempt
+that cannot work and relay immediately. It is **empty**, and measured rather than
+assumed: a probe of all 40 https stream hosts in the catalogue found every
+reachable one already sends `Access-Control-Allow-Origin`, so none of them need
+it. The 16 plain-http streams are forced through the relay on scheme alone.
 
 **It is not an open proxy.** Requests are refused unless the host appears in a
 stream URL in `public/channels.js`. Cross-host segments are accepted only with a

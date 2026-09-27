@@ -38,6 +38,11 @@ const ALLOWED_HOSTS = new Set(
 // mcdn.antennaplus.gr, so without this the relay cannot fetch a channel whose
 // URL is perfectly good. Values come from the iptv-org playlist's
 // http-referrer hints.
+//
+// Dormant while Ant1's catalogue entry is null: ALLOWED_HOSTS is derived from
+// the catalogue, so the relay now refuses that host before it would get here.
+// Kept because the rule is general, the finding was expensive to make, and
+// restoring the URL (or running the server from Greece) needs it again.
 const HOST_REFERER = {
   "mcdn.antennaplus.gr": "http://watch.antennaplus.gr/",
 };

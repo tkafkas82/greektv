@@ -8,8 +8,14 @@
 // (https://iptv-org.github.io/iptv/countries/gr.m3u), except where a broadcaster
 // publishes its own live manifest and iptv-org does not carry the channel, in
 // which case the URL here is a fallback and public/resolvers.js says how to get
-// the current one. Only 66 of the 251 channels have a stream; the rest are
+// the current one. Only 65 of the 251 channels have a stream; the rest are
 // directory-only. See README.md.
+//
+// Ant1 is deliberately null although iptv-org lists a URL for it: that stream is
+// geo-restricted to Greece, so the relay - which runs in Vercel's Frankfurt
+// region - gets a 403, and the browser cannot fetch it directly because the CDN
+// rejects our Origin. Leaving the URL in place only bought a timeout before the
+// embed loaded anyway. See README.md.
 //
 // Row shape: [name, id, slug, categoryIndex, streamUrl|null, tvgId|null]
 
@@ -30,7 +36,7 @@ const ROWS = [
   ["ERT 2 Sports",2,"ert-2-sports",0,null,null],
   ["ERT 3",3,"ert-3",0,"https://ert-ucdn.broadpeak-aas.com/bpk-tv/ERT3/default/index.m3u8","ERT3.gr@SD"],
   ["Mega",6,"mega",0,null,null],
-  ["Ant1",5,"ant1",0,"https://mcdn.antennaplus.gr/live/media0/Ant1/HLS/Ant1.m3u8","ANT1.gr@SD"],
+  ["Ant1",5,"ant1",0,null,"ANT1.gr@SD"],
   ["Alpha",4,"alpha",0,"https://alphatvlive2.siliconweb.com/alphatvlive/live_abr/playlist.m3u8","AlphaTV.gr@SD"],
   ["Star",9,"star",0,"http://livestar.siliconweb.com/starvod/star4/star4.m3u8","StarChannel.gr@SD"],
   ["Open Beyond",7,"open-beyond",0,"https://liveopen.siliconweb.com/openTvLive/liveopen/chunks.m3u8",null],
@@ -293,3 +299,13 @@ export const CHANNELS = ROWS.map(([name, id, slug, cat, stream, tvg]) => ({
 
 export const BY_ID = new Map(CHANNELS.map((c) => [c.id, c]));
 export const BY_TVG = new Map(CHANNELS.filter((c) => c.tvg).map((c) => [c.tvg, c]));
+
+// Hosts that serve a stream but can never be fetched straight from the page, so
+// the player skips the direct attempt and relays immediately.
+//
+// Empty today, and measured rather than assumed: a probe of all 40 https stream
+// hosts in this catalogue found every reachable one already sends
+// Access-Control-Allow-Origin, so none of them need this. The 16 plain-http
+// streams are handled separately - an https page can never load those, and the
+// player forces the relay for them on scheme alone.
+export const RELAY_ONLY_HOSTS = new Set([]);
