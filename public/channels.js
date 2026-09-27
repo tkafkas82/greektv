@@ -308,18 +308,21 @@ const ROWS = [
   // highest id is 835. Every stream is Icecast rather than HLS - see attach()
   // in app.js, which cannot hand these to hls.js. All three are https and send
   // Access-Control-Allow-Origin, so they play straight from the page.
+  // Listed in the order they should appear. The grid section and the player's
+  // reel both follow this array, so the order lives here rather than in a sort;
+  // ids stay as they were, so deep links, favourites and saved songs survive.
   ["En Lefko 87.7",900,"en-lefko",9,"https://stream.rcs.revma.com/kwste9dz1duvv",null,"https://www.enlefko.fm/"],
   ["Pepper 96.6",901,"pepper",9,"https://netradio.live24.gr/pepper9660",null,"https://www.pepper966.gr/"],
-  ["ERT Kosmos",902,"ert-kosmos",9,"https://radiostreaming.ert.gr/ert-kosmos",null,"https://www.ertecho.gr/radio/kosmos/"],
-  ["Best Radio 92.6",903,"best-radio",9,"https://best.live24.gr/best1222",null,"https://best926.gr/"],
+  // Thessaloniki. No frequency in the name because the station page gives none
+  // and guessing one would be worse than leaving it off.
+  ["Republic Radio",905,"republic-radio",9,"https://netradio.live24.gr/republicthess",null,"https://live24.gr/radio/generic.jsp?sid=289"],
   // Nitro was Pride 98.6, which is why the mount and the Live24 page still say
   // "pride" and why searching for the current name finds nothing. The stream
   // sends icy-name "no name", so unlike the others its identity rests on that
   // Live24 page rather than on the header.
   ["Nitro Radio 98.6",904,"nitro-radio",9,"https://politismedia-sec.live24.gr/streameepride",null,"https://live24.gr/radio/pride986.jsp"],
-  // Thessaloniki. No frequency in the name because the station page gives none
-  // and guessing one would be worse than leaving it off.
-  ["Republic Radio",905,"republic-radio",9,"https://netradio.live24.gr/republicthess",null,"https://live24.gr/radio/generic.jsp?sid=289"]
+  ["ERT Kosmos",902,"ert-kosmos",9,"https://radiostreaming.ert.gr/ert-kosmos",null,"https://www.ertecho.gr/radio/kosmos/"],
+  ["Best Radio 92.6",903,"best-radio",9,"https://best.live24.gr/best1222",null,"https://best926.gr/"]
 ];
 
 export const CHANNELS = ROWS.map(([name, id, slug, cat, stream, tvg, site]) => ({
