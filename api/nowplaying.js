@@ -10,9 +10,19 @@
 //          this has to happen server-side at all.
 //   json - a station's own now-playing endpoint, where it has one.
 //
-// Not every station publishes anything: ERT Kosmos sends no StreamTitle and its
-// site's endpoint returns empty, so it simply has no source here and the client
-// shows nothing rather than a wrong guess.
+// Not every station publishes anything usable:
+//
+//   ERT Kosmos sends no StreamTitle and its site's endpoint returns empty, so it
+//   has no source here at all and the client shows nothing rather than a guess.
+//
+//   Best answers, but with "-" placeholders whenever nothing is queued.
+//
+//   Nitro is the odd one: read from Greece it names the track immediately, but
+//   read from Vercel it never does. Its stream inserts a preroll ad on the
+//   connection (adw_ad='true', insertionType='preroll', ~50s), and StreamTitle
+//   stays empty for the duration - longer than this read's budget, and longer
+//   than the function may run at all. Not worth chasing; it degrades to an em
+//   dash like the rest.
 //
 // Answers are cached in module scope for TTL_MS. An icy read opens a real
 // connection to the stream and pulls audio until a title shows up, so polling

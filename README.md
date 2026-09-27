@@ -182,6 +182,13 @@ Two kinds of source, because no single one covers them:
 | `json` | Pepper (Radiojar), Best (Attica) | The station’s own endpoint |
 | none | ERT Kosmos | Publishes neither |
 
+In practice three of the six show a track in production. Best answers with `-`
+placeholders whenever nothing is queued. Nitro names the track immediately when
+read from Greece but never from Vercel: its stream inserts a preroll ad on the
+connection (`insertionType='preroll'`, ~50s) and `StreamTitle` stays empty for
+the duration — longer than the read budget, and longer than the function may run.
+Both degrade to an em dash.
+
 In-band metadata needs an `Icy-MetaData: 1` request, then reading `icy-metaint`
 bytes of audio before each metadata block and parsing `StreamTitle`. **The
 browser’s media element exposes none of this**, which is why it has to happen
