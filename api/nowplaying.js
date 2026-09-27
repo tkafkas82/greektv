@@ -59,6 +59,8 @@ const SOURCES = {
   },
   // ERT Kosmos deliberately absent: no in-band title, no working endpoint.
   902: { kind: "none" },
+  // Sport FM is talk and commentary, and its stream sends icy-metaint: 0.
+  906: { kind: "none" },
 };
 
 /** channel id -> { at, entry } */

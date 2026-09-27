@@ -306,7 +306,7 @@ const ROWS = [
 
   // Radio. Ids start at 900 so they cannot collide with the TV directory, whose
   // highest id is 835. Every stream is Icecast rather than HLS - see attach()
-  // in app.js, which cannot hand these to hls.js. All three are https and send
+  // in app.js, which cannot hand these to hls.js. All of them are https and send
   // Access-Control-Allow-Origin, so they play straight from the page.
   // Listed in the order they should appear. The grid section and the player's
   // reel both follow this array, so the order lives here rather than in a sort;
@@ -322,7 +322,8 @@ const ROWS = [
   // Live24 page rather than on the header.
   ["Nitro Radio 98.6",904,"nitro-radio",9,"https://politismedia-sec.live24.gr/streameepride",null,"https://live24.gr/radio/pride986.jsp"],
   ["ERT Kosmos",902,"ert-kosmos",9,"https://radiostreaming.ert.gr/ert-kosmos",null,"https://www.ertecho.gr/radio/kosmos/"],
-  ["Best Radio 92.6",903,"best-radio",9,"https://best.live24.gr/best1222",null,"https://best926.gr/"]
+  ["Best Radio 92.6",903,"best-radio",9,"https://best.live24.gr/best1222",null,"https://best926.gr/"],
+  ["Sport FM 94.6",906,"sport-fm",9,"https://sportfm.live24.gr/sportfm7712",null,"https://live24.gr/radio/sportfm.jsp"]
 ];
 
 export const CHANNELS = ROWS.map(([name, id, slug, cat, stream, tvg, site]) => ({

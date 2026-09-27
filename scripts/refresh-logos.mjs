@@ -57,6 +57,10 @@ const PINNED = {
   // og:image there is a campaign photo, not a logo.
   "best-radio":
     "https://www.atticaradios.gr/Content/ImagesDatabase/p/crop/both/be/beacb687958a453286a9bc7d07333915.svg",
+  // The header logo on sport-fm.gr. live24's player page still shows the old
+  // Nova-era artwork. A wide banner with the sponsor on the left, but the
+  // ΣΠΟΡ FM mark sits in the middle, which is the part a wide plate keeps.
+  "sport-fm": "https://www.sport-fm.gr/resrc/images/logos/logo-normal_v3.png",
 
   // Two directory rows point at a file that is not in the asset repo, both off
   // by a letter: it holds avanti.webp and jakson_palace.webp, while the
