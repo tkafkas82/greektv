@@ -72,8 +72,24 @@ async function resolveLive(resolver) {
       return { url: null, detail: html ? "upstream returned HTML, not JSON" : "unparseable response" };
     }
 
-    const url = acceptable(resolver.pick(data), resolver);
-    return url ? { url } : { url: null, detail: "no acceptable URL in response" };
+    const raw = resolver.pick(data);
+    if (typeof raw !== "string" || !raw) {
+      return { url: null, detail: "response carried no stream URL" };
+    }
+
+    const url = acceptable(raw, resolver);
+    if (url) return { url };
+
+    // Name the host: these endpoints can answer differently per region, and a
+    // rejected host is the difference between a geo-variant CDN worth adding to
+    // the resolver and something that should stay rejected.
+    let host;
+    try {
+      host = new URL(raw).host;
+    } catch {
+      host = "unparseable URL";
+    }
+    return { url: null, detail: `undeclared host: ${host}` };
   } catch (err) {
     return { url: null, detail: err && err.name === "AbortError" ? "timed out" : String(err) };
   } finally {
