@@ -533,6 +533,9 @@ function attach(url, { audio = false } = {}) {
   // it outright. It also plays through its own element outside the overlay, so
   // that closing the player leaves the sound on.
   if (audio) {
+    // Same reason: by the time an awaited attach lands, the viewer may have
+    // moved to a TV channel.
+    if (!playing || !playing.audio) return;
     radioCh = playing;
     // Re-attaching the same URL would restart the stream, which for live radio
     // is a pointless gap in the audio.
@@ -601,6 +604,11 @@ const songText = (ch) => {
 };
 
 function showRadioStage() {
+  // The stage covers the video, so showing it for anything but the station
+  // being played leaves picture hidden behind a radio panel - sound with no
+  // image. Refuse rather than trust the caller: a stale async attach must not
+  // be able to paint over a TV channel that has since taken over.
+  if (!playing || !playing.audio) return;
   video.hidden = true;
   frame.hidden = true;
   radioStage.hidden = false;
@@ -608,6 +616,14 @@ function showRadioStage() {
   document.getElementById("rs-name").textContent = playing ? playing.name : "";
   document.getElementById("rs-now").textContent = playing ? songText(playing) : "—";
   hideNote();
+}
+
+/**
+ * The stage is a function of what is playing, not something toggled from two
+ * places. Called wherever playback settles so the two can never disagree.
+ */
+function syncStage() {
+  if (!playing || !playing.audio) radioStage.hidden = true;
 }
 
 /** The bar shows only when a station is loaded and the overlay is not up. */
@@ -918,6 +934,7 @@ async function loadChannel(ch, { push = true } = {}) {
       (url.startsWith("http://") && location.protocol === "https:") || relayOnly(url);
     if (mustRelay) usedRelay = true;
     attach(mustRelay ? relayUrl(url) : url, { audio: ch.audio });
+    syncStage();
     return;
   }
 
@@ -936,6 +953,7 @@ async function loadChannel(ch, { push = true } = {}) {
  */
 function showEmbed(ch, reason) {
   hideNote();
+  syncStage();
   video.hidden = true;
   frame.hidden = false;
   embedNote.hidden = false;
@@ -1082,6 +1100,8 @@ player.addEventListener("click", (ev) => {
 // day even while it was audibly playing.
 video.addEventListener("playing", () => {
   hideNote();
+  // Picture is up: nothing from the radio side may be covering it.
+  syncStage();
   if (playing && dead[playing.id] !== undefined) {
     clearDead(playing.id);
     render();
