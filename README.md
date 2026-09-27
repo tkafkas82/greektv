@@ -1,6 +1,6 @@
 # Greek TV Dial
 
-All **251 Greek TV channels** plus **3 radio stations** in one grid, grouped into
+All **251 Greek TV channels** plus **4 radio stations** in one grid, grouped into
 ten categories, with the **current programme** for the channels a public guide
 covers and **in-app playback** for everything that has an open stream.
 
@@ -52,14 +52,14 @@ back to it. The only thing that navigates away is the small ↗ on each card.
 
 Channels split into two kinds, marked `LIVE` and `WEB` on every card:
 
-- **`LIVE` (68)** — an open stream, played directly in the overlay.
+- **`LIVE` (69)** — an open stream, played directly in the overlay.
 - **`WEB` (186)** — no open stream, so the channel's own greektv.live page loads
   in an iframe inside the same overlay. Their page permits framing (it sends no
   `X-Frame-Options` and no CSP `frame-ancestors`), and their ads and analytics
   still load inside the frame. You may need to press **Δείτε Τώρα** within it to
   start, which the player says on screen.
 
-### Playback: 68 of 254 channels
+### Playback: 69 of 255 channels
 
 greektv.live does **not** expose its stream URLs. Its channel pages ship
 `"streams":[]` next to an `"encryptedStreams":["YGMGcA6lxqpM0f3…"]` blob that is
@@ -116,16 +116,16 @@ greektv.live link rather than spinning forever.
 ### Defaults
 
 **Μόνο με αναπαραγωγή is checked on load**, so the grid opens on the channels
-that play in-app rather than on all 254. Untick it to see the whole catalogue.
+that play in-app rather than on all 255. Untick it to see the whole catalogue.
 The `checked` attribute in `index.html` and `state.onlyPlayable` in `app.js` have
 to agree — they are the same setting written twice.
 
 Deep links ignore the filter: `/c/ant1` still opens Ant1 even though its card is
 filtered out of the grid.
 
-### Radio: 3 stations
+### Radio: 4 stations
 
-Three stations sit in a tenth category, **Ραδιόφωνο**, and behave like any other
+Four stations sit in a tenth category, **Ραδιόφωνο**, and behave like any other
 card — search, favourites, deep links, the `LIVE`/`WEB` tag and the dead-stream
 memory all apply unchanged.
 
@@ -134,6 +134,7 @@ memory all apply unchanged.
 | En Lefko 87.7 | `stream.rcs.revma.com` | AAC |
 | Pepper 96.6 | `netradio.live24.gr` | MP3 192k |
 | ERT Kosmos | `radiostreaming.ert.gr` | MP3 256k |
+| Best Radio 92.6 | `best.live24.gr` | MP3 256k |
 
 Two things differ from TV, both in code rather than data:
 
@@ -145,6 +146,10 @@ Two things differ from TV, both in code rather than data:
 - **They are not in the greektv.live directory**, so the derived `watchUrl` would
   be a 404 in an iframe. The row shape gained an optional seventh field, a
   `siteUrl`, pointing at the station’s own site instead.
+
+Every stream URL is verified against the station’s `icy-name` before it goes in,
+rather than trusted because the URL looked right — public radio directories carry
+stale mounts that 404 or point somewhere else entirely.
 
 Ids start at 900 so they cannot collide with the TV directory, whose highest id
 is 835. All three are https and send `Access-Control-Allow-Origin`, so they play
@@ -218,7 +223,7 @@ exist.
   "at": 1789638931953,
   "fetchedAt": 1789638900000,
   "coverage": 56,
-  "catalogue": 254,
+  "catalogue": 255,
   "channels": {
     "6": {
       "now":  { "title": "…", "start": 0, "stop": 0, "rating": "K12", "progress": 41 },
@@ -230,7 +235,7 @@ exist.
 
 Channels absent from `channels` have no guide data. `?at=<epoch ms>` asks about
 another instant; `?refresh=1` bypasses the cache. A guide outage returns `503`
-with `"channels": {}` — the client renders all 254 channels regardless.
+with `"channels": {}` — the client renders all 255 channels regardless.
 
 Digea returns Athens wall-clock strings; `lib/digea.js` converts them to epoch ms
 with a two-pass `Intl` offset lookup, so the hour DST shifts resolves correctly

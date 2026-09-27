@@ -295,7 +295,8 @@ const ROWS = [
   // Access-Control-Allow-Origin, so they play straight from the page.
   ["En Lefko 87.7",900,"en-lefko",9,"https://stream.rcs.revma.com/kwste9dz1duvv",null,"https://www.enlefko.fm/"],
   ["Pepper 96.6",901,"pepper",9,"https://netradio.live24.gr/pepper9660",null,"https://www.pepper966.gr/"],
-  ["ERT Kosmos",902,"ert-kosmos",9,"https://radiostreaming.ert.gr/ert-kosmos",null,"https://www.ertecho.gr/radio/kosmos/"]
+  ["ERT Kosmos",902,"ert-kosmos",9,"https://radiostreaming.ert.gr/ert-kosmos",null,"https://www.ertecho.gr/radio/kosmos/"],
+  ["Best Radio 92.6",903,"best-radio",9,"https://best.live24.gr/best1222",null,"https://best926.gr/"]
 ];
 
 export const CHANNELS = ROWS.map(([name, id, slug, cat, stream, tvg, site]) => ({
