@@ -1031,8 +1031,71 @@ function refreshCounts() {
 }
 refreshCounts();
 
+/* -------------------------------------------------------------------- pwa */
+// Paint the splash tiles from the same hues as the icon, dismiss it once the
+// grid exists, register the worker, and surface an install button only when the
+// browser actually offers one.
+function splashDown() {
+  const el = document.getElementById("splash");
+  if (!el) return;
+  el.classList.add("gone");
+  // Match the CSS transition; removing the node keeps it out of the a11y tree.
+  setTimeout(() => el.remove(), 420);
+}
+
+function paintSplash() {
+  const grid = document.querySelector(".splash-grid");
+  if (!grid) return;
+  grid.innerHTML = CATEGORIES.slice(0, 9)
+    .map((cat, i) => `<i style="background:hsl(${cat.hue} 62% ${i % 2 ? 52 : 44}%);animation-delay:${i * 90}ms"></i>`)
+    .join("");
+}
+
+function initPwa() {
+  paintSplash();
+
+  if ("serviceWorker" in navigator) {
+    // After load, so the worker never competes with the first paint or the
+    // guide request for bandwidth.
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("/sw.js").catch(() => {
+        /* an unregistered worker costs nothing - the app is fine without it */
+      });
+    });
+  }
+
+  const btn = document.getElementById("install");
+  if (!btn) return;
+  let prompt = null;
+
+  window.addEventListener("beforeinstallprompt", (ev) => {
+    // Chrome would otherwise show its own mini-infobar; we want the button.
+    ev.preventDefault();
+    prompt = ev;
+    btn.hidden = false;
+  });
+
+  btn.addEventListener("click", async () => {
+    if (!prompt) return;
+    btn.hidden = true;
+    prompt.prompt();
+    await prompt.userChoice;
+    // The event is single-use, so drop it either way and let a later
+    // beforeinstallprompt bring the button back if the install was dismissed.
+    prompt = null;
+  });
+
+  window.addEventListener("appinstalled", () => {
+    btn.hidden = true;
+    prompt = null;
+  });
+}
+
+initPwa();
+
 buildRail();
 render();
+splashDown();
 loadGuide();
 
 // A /c/<slug> path (or a legacy #ch=<id> hash) opens straight into that

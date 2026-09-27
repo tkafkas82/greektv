@@ -8,6 +8,12 @@
 <meta name="theme-color" content="#EEF1F6" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0B1018" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📺</text></svg>">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="TV Dial">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Commissioner:wght@500;700;800&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
@@ -16,6 +22,17 @@
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
+
+<!-- Launch splash. Hidden by default and shown only by the display-mode media
+     query in styles.css, so a browser tab never flashes it; app.js removes it
+     once the grid has rendered. -->
+<div id="splash" aria-hidden="true">
+  <div class="splash-in">
+    <span class="splash-grid"></span>
+    <b>Greek TV Dial</b>
+    <span class="splash-bar"><i></i></span>
+  </div>
+</div>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="i-star" viewBox="0 0 24 24">
@@ -68,6 +85,10 @@
              placeholder="Αναζήτηση καναλιού…" aria-label="Αναζήτηση καναλιού">
       <kbd>/</kbd>
     </div>
+
+    <button class="btn install" id="install" type="button" hidden>
+      <span aria-hidden="true">⬇</span> Εγκατάσταση
+    </button>
 
     <button class="btn zap" id="zap" type="button">
       <span aria-hidden="true">⤨</span> Ζάπινγκ

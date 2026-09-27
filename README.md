@@ -191,6 +191,30 @@ a fuller feed, `lib/epg.js` is the only file that needs to change.
 
 ---
 
+## Installable (PWA)
+
+`manifest.webmanifest` plus `public/sw.js` make it installable; the header shows
+an **Εγκατάσταση** button only when the browser fires
+`beforeinstallprompt`, so it never advertises an install that cannot happen.
+
+Icons are the nine category hues as a 3×3 grid — the dial itself — rendered to
+PNG from `public/icons/`. The launch splash reuses the same nine hues so the
+window and the home-screen icon read as one thing, and it is shown **only** by a
+`display-mode: standalone` media query, so a normal browser tab never flashes it.
+
+The worker is deliberately narrow:
+
+- **`/api/*` is never cached.** The guide is time-sensitive and `/api/resolve`
+  exists precisely to avoid a stale URL — caching either would undo both.
+- **Cross-origin is passed straight through.** Streams, segments and fonts are
+  someone else’s bytes; caching megabytes of live video per viewer would be
+  worse than useless.
+- Navigations go to the network first and fall back to the cached shell, so a
+  deploy is picked up immediately. `/sw.js` is served `must-revalidate` so a
+  stale worker can’t pin an old build.
+
+Bump `VERSION` in `sw.js` to invalidate the shell.
+
 ## Layout
 
 ```
@@ -199,6 +223,7 @@ public/
   styles.css      tokens for light/dark, one hue per category via --h
   app.js          grid, search, favourites, player
   channels.js     the catalogue — single source of truth
+  manifest.webmanifest / sw.js / icons/   PWA: install, splash, shell cache
   resolvers.js    broadcasters that publish their own rotating manifest URL
 lib/
   channels.js     re-exports public/channels.js so the API shares one copy

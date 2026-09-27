@@ -390,6 +390,40 @@ button{font:inherit; color:inherit}
 .player-foot .v{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .player-foot .v.dim{color:var(--muted); font-style:italic}
 
+/* ---------------- PWA: launch splash and install button ---------------- */
+/* Hidden in a browser tab and shown only in an installed window, so a normal
+   visit never flashes it. app.js removes the node once the grid is up. */
+#splash{display:none}
+
+@media (display-mode: standalone), (display-mode: fullscreen){
+  #splash{
+    display:grid; place-items:center; position:fixed; inset:0; z-index:99;
+    background:#0B1018; color:#E8EEF6;
+    transition:opacity .38s ease;
+  }
+  #splash.gone{opacity:0; pointer-events:none}
+}
+
+.splash-in{display:grid; justify-items:center; gap:18px}
+.splash-in b{font-family:var(--display,inherit); font-size:19px; letter-spacing:.2px}
+
+/* The same nine category hues as the app icon, so the launch screen and the
+   home-screen icon are recognisably one thing. */
+.splash-grid{
+  display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr);
+  width:96px; height:96px; gap:8px;
+}
+.splash-grid::before{content:none}
+.splash-grid i{border-radius:20%; display:block; animation:splash-pulse 1.5s ease-in-out infinite}
+
+@keyframes splash-pulse{0%,100%{opacity:.35; transform:scale(.92)} 50%{opacity:1; transform:scale(1)}}
+
+.splash-bar{display:block; width:112px; height:3px; border-radius:2px; background:#1A2330; overflow:hidden}
+.splash-bar i{display:block; width:40%; height:100%; border-radius:2px; background:#6E9CF7; animation:splash-slide 1.15s ease-in-out infinite}
+@keyframes splash-slide{0%{transform:translateX(-110%)} 100%{transform:translateX(320%)}}
+
+.btn.install{border-color:hsl(218 58% 46% / .45)}
+
 @media (prefers-reduced-motion: reduce){
   *{transition:none !important; animation:none !important}
   .ch:hover{transform:none}
