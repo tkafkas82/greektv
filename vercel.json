@@ -3,7 +3,7 @@
   "outputDirectory": "public",
   "cleanUrls": true,
   "rewrites": [
-    { "source": "/c/:slug", "destination": "/index.html" }
+    { "source": "/c/:slug", "destination": "/" }
   ],
   "functions": {
     "api/*.js": {

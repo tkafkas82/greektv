@@ -7,7 +7,11 @@
 //
 // `source` tells the caller what it got: "live" straight from the broadcaster,
 // "cache" from the short module-scope cache, or "fallback" when the endpoint
-// failed or returned a URL we don't accept.
+// failed or returned a URL we don't accept. A fallback carries `detail` saying
+// why, because the usual cause is invisible from the outside: several of these
+// endpoints sit behind Cloudflare and answer a home IP while challenging a
+// datacenter one, so the same code can resolve locally and fall back in
+// production.
 //
 // SECURITY: a resolved URL is only ever returned when its host is one the
 // resolver declared in lib/resolvers.js, so a changed or hostile upstream cannot
@@ -39,6 +43,7 @@ function acceptable(raw, resolver) {
   return url.href;
 }
 
+/** @returns {Promise<{url: string|null, detail?: string}>} */
 async function resolveLive(resolver) {
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), TIMEOUT_MS);
@@ -52,13 +57,25 @@ async function resolveLive(resolver) {
       redirect: "follow",
       signal: abort.signal,
     });
-    if (!res.ok) return null;
+    if (!res.ok) return { url: null, detail: `upstream ${res.status}` };
+
     // The endpoint is a player data feed, not a documented API - it has served
     // text/html content types before, so don't gate on the header.
-    const data = JSON.parse(await res.text());
-    return acceptable(resolver.pick(data), resolver);
-  } catch {
-    return null;
+    const text = await res.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      // A Cloudflare interstitial arrives as a 200 full of HTML, so say that
+      // rather than the parser's complaint about "<".
+      const html = /^\s*<(?:!doctype|html)/i.test(text);
+      return { url: null, detail: html ? "upstream returned HTML, not JSON" : "unparseable response" };
+    }
+
+    const url = acceptable(resolver.pick(data), resolver);
+    return url ? { url } : { url: null, detail: "no acceptable URL in response" };
+  } catch (err) {
+    return { url: null, detail: err && err.name === "AbortError" ? "timed out" : String(err) };
   } finally {
     clearTimeout(timer);
   }
@@ -99,11 +116,17 @@ export default async function handler(req, res) {
   }
 
   const live = await resolveLive(resolver);
-  if (!live) {
-    reply(res, 200, { channel: id, stream: fallback, source: "fallback", fetchedAt: now });
+  if (!live.url) {
+    reply(res, 200, {
+      channel: id,
+      stream: fallback,
+      source: "fallback",
+      detail: live.detail,
+      fetchedAt: now,
+    });
     return;
   }
 
-  cache.set(id, { at: now, stream: live });
-  reply(res, 200, { channel: id, stream: live, source: "live", fetchedAt: now });
+  cache.set(id, { at: now, stream: live.url });
+  reply(res, 200, { channel: id, stream: live.url, source: "live", fetchedAt: now });
 }
