@@ -45,8 +45,8 @@ const AUDIO = new Set(["radio", "euradio"]);
 // reordering that array would mean rewriting every row; this keeps the data
 // still and moves only the presentation.
 const DISPLAY_ORDER = [
-  "radio", "euradio", "national", "sports", "cinema", "kids",
-  "music", "regional", "cyprus", "international", "webtv",
+  "radio", "national", "sports", "cinema", "kids",
+  "music", "regional", "cyprus", "euradio", "international", "webtv",
 ];
 
 export const CATEGORY_ORDER = DISPLAY_ORDER.map((key) => {
