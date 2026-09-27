@@ -45,6 +45,14 @@
 }
 
 *{box-sizing:border-box}
+
+/* The `hidden` attribute must beat any display a component sets on itself.
+   Without this the UA rule [hidden]{display:none} loses on specificity to any
+   class that sets display, so el.hidden = true sets the property and changes
+   nothing on screen - which is how the radio panel stayed up over a playing TV
+   channel: sound, no picture. Four elements were affected, so it is fixed once
+   here rather than per component. */
+[hidden]{display:none !important}
 html{height:100%}
 body{
   margin:0; min-height:100%; background:var(--ground); color:var(--ink);
@@ -422,7 +430,6 @@ button{font:inherit; color:inherit}
   background:var(--surface); border:1px solid var(--line); border-bottom:0;
   box-shadow:0 -6px 24px rgb(0 0 0 / .18);
 }
-.minibar[hidden]{display:none}
 
 .mb-open{
   flex:1; min-width:0; display:flex; align-items:center; gap:10px;

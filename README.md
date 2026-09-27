@@ -259,6 +259,18 @@ The worker is deliberately narrow:
 
 Bump `VERSION` in `sw.js` to invalidate the shell.
 
+## A trap worth knowing about
+
+`[hidden]{display:none !important}` sits at the top of `styles.css` on purpose.
+The UA stylesheet’s `[hidden]{display:none}` loses on specificity to any class
+that sets `display`, so `el.hidden = true` sets the property and changes nothing
+on screen. Four elements here were affected — the radio stage, the embed iframe,
+the video and the install button — and the visible symptom was a radio panel
+sitting over a playing TV channel: sound, no picture.
+
+It also defeats testing that asserts on `el.hidden`, which is `true` throughout.
+Assert on `getComputedStyle(el).display` instead.
+
 ## Layout
 
 ```
