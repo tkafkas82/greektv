@@ -301,7 +301,10 @@ const ROWS = [
   // "pride" and why searching for the current name finds nothing. The stream
   // sends icy-name "no name", so unlike the others its identity rests on that
   // Live24 page rather than on the header.
-  ["Nitro Radio 98.6",904,"nitro-radio",9,"https://politismedia-sec.live24.gr/streameepride",null,"https://live24.gr/radio/pride986.jsp"]
+  ["Nitro Radio 98.6",904,"nitro-radio",9,"https://politismedia-sec.live24.gr/streameepride",null,"https://live24.gr/radio/pride986.jsp"],
+  // Thessaloniki. No frequency in the name because the station page gives none
+  // and guessing one would be worse than leaving it off.
+  ["Republic Radio",905,"republic-radio",9,"https://netradio.live24.gr/republicthess",null,"https://live24.gr/radio/generic.jsp?sid=289"]
 ];
 
 export const CHANNELS = ROWS.map(([name, id, slug, cat, stream, tvg, site]) => ({
