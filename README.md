@@ -135,9 +135,10 @@ public/
   styles.css      tokens for light/dark, one hue per category via --h
   app.js          grid, search, favourites, player
   channels.js     the catalogue — single source of truth
+  resolvers.js    broadcasters that publish their own rotating manifest URL
 lib/
   channels.js     re-exports public/channels.js so the API shares one copy
-  resolvers.js    broadcasters that publish their own rotating manifest URL
+  resolvers.js    re-exports public/resolvers.js, same reason
   epg-map.js      our channel id -> Digea channel id (generated)
   digea.js        Digea client, Athens-time conversion, rating extraction
   epg.js          10-minute cache, now/next resolution
@@ -191,15 +192,41 @@ few channels that rotate theirs:
 { "channel": 7, "stream": "https://…/chunks.m3u8", "source": "live", "fetchedAt": 1758… }
 ```
 
-`source` is `live` (fetched from the broadcaster), `cache` (module-scope, 60s) or
-`fallback`. It falls back to the catalogue URL whenever the endpoint is
-unreachable, returns a non-200, fails to parse, or hands back a URL whose host the
-resolver did not declare in `lib/resolvers.js`. That host allowlist is the point:
-a changed or hostile upstream cannot redirect playback to an arbitrary origin.
+**The page asks the broadcaster itself first, and falls back to this route.**
+That ordering matters because these endpoints answer per region: asked from
+Vercel’s Frankfurt region, tvopen.gr returns its “out of Greece” placeholder on
+`s.tvopen.gr`, which the host allowlist rejects. The viewer’s own browser is in
+the right country.
 
-Channels without a resolver return `404`. The player only calls this for ids in
-`RESOLVED_IDS`, so the other 250 cards open with no extra request. A failed
-resolve returns the catalogue URL rather than nothing, so it never trips the
+In practice the direct attempt is often blocked: Cloudflare fronts these
+endpoints and does not answer a cross-origin `fetch` the way it answers the
+player’s own same-origin one, so the browser sees a CORS failure even though the
+same request from `curl` returns `200` with `Access-Control-Allow-Origin: *`. The
+page therefore tries once per load and, on failure, uses this route for the rest
+of the session instead of paying for a request that won’t work there. This route
+is also where the 60-second cache lives.
+
+Both paths can fail, and then the catalogue URL is used as-is. That is the
+honest state of it: when neither path resolves, a rotated URL is caught by the
+dead-stream memory above and the channel falls back to its embedded page.
+
+`source` is `live` (fetched from the broadcaster), `cache` or `fallback`. A
+fallback carries `detail` saying why, because the usual causes are invisible from
+outside:
+
+```json
+{ "source": "fallback", "detail": "undeclared host: s.tvopen.gr", "stream": "https://…" }
+```
+
+It falls back to the catalogue URL whenever the endpoint is unreachable, returns
+a non-200, fails to parse, or hands back a URL whose host the resolver did not
+declare in `public/resolvers.js`. That allowlist is the point: a regional
+placeholder — or a compromised upstream — cannot be played as if it were the
+channel.
+
+Channels without a resolver return `404`, and the player only resolves ids listed
+in `RESOLVERS`, so the other 250 cards open with no extra request. A failed
+resolve yields the catalogue URL rather than nothing, so it never trips the
 dead-stream memory on its own.
 
 ### `GET /api/stream`

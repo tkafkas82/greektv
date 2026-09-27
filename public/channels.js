@@ -6,8 +6,9 @@
 //
 // Stream URLs come from the openly published iptv-org Greek playlist
 // (https://iptv-org.github.io/iptv/countries/gr.m3u), except where a broadcaster
-// publishes its own live manifest and iptv-org does not carry the channel - see
-// RESOLVED_IDS below. Only 66 of the 251 channels have a stream; the rest are
+// publishes its own live manifest and iptv-org does not carry the channel, in
+// which case the URL here is a fallback and public/resolvers.js says how to get
+// the current one. Only 66 of the 251 channels have a stream; the rest are
 // directory-only. See README.md.
 //
 // Row shape: [name, id, slug, categoryIndex, streamUrl|null, tvgId|null]
@@ -292,8 +293,3 @@ export const CHANNELS = ROWS.map(([name, id, slug, cat, stream, tvg]) => ({
 
 export const BY_ID = new Map(CHANNELS.map((c) => [c.id, c]));
 export const BY_TVG = new Map(CHANNELS.filter((c) => c.tvg).map((c) => [c.tvg, c]));
-
-// Channels whose broadcaster rotates its manifest URL, so the entry above is only
-// a fallback and the live URL is fetched from /api/resolve at play time. Must stay
-// in step with RESOLVERS in lib/resolvers.js.
-export const RESOLVED_IDS = new Set([7]);

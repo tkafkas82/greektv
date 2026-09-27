@@ -1,7 +1,8 @@
 // Greek TV Dial - grid, search, guide overlay and player.
 
 // Root-absolute so a /c/<slug> deep link doesn't resolve this to /c/channels.js.
-import { CHANNELS, CATEGORIES, RESOLVED_IDS } from "/channels.js";
+import { CHANNELS, CATEGORIES } from "/channels.js";
+import { RESOLVERS, acceptableUrl } from "/resolvers.js";
 
 const EPG_REFRESH_MS = 5 * 60 * 1000;
 const TICK_MS = 30 * 1000;
@@ -636,13 +637,54 @@ function markCurrent() {
   document.getElementById("p-next-ch").disabled = at < 0 || at >= reel.length - 1;
 }
 
+const RESOLVE_TIMEOUT_MS = 6000;
+
+// Whether this browser can reach the broadcaster cross-origin. Unknown until we
+// try; once it has failed, stop paying for a request that won't work here, and
+// let a reload find out again. Cloudflare sits in front of these endpoints and
+// does not always answer a cross-origin fetch the way it answers the player's
+// own same-origin one.
+let canResolveHere = null;
+
+/** Ask the broadcaster directly. Kept a simple CORS GET so it needs no preflight. */
+async function resolveHere(resolver) {
+  if (canResolveHere === false) return null;
+
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), RESOLVE_TIMEOUT_MS);
+  try {
+    const res = await fetch(resolver.endpoint, { signal: abort.signal });
+    if (!res.ok) return null;
+    const url = acceptableUrl(resolver.pick(await res.json()), resolver);
+    // A reachable endpoint that returned something we reject is not a reason to
+    // stop asking - the next answer may be fine.
+    canResolveHere = true;
+    return url;
+  } catch {
+    canResolveHere = false;
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /**
- * Current URL for a channel whose broadcaster rotates it. Falls back to the
- * catalogue entry on any failure, so a resolver outage degrades to what we ship
- * rather than to a dead stream and a premature markDead().
+ * Current URL for a channel whose broadcaster rotates it.
+ *
+ * The page asks the broadcaster itself before asking our own route, because
+ * these endpoints answer per region and the viewer is the one in the right
+ * country - the same question from Vercel's Frankfurt region comes back with an
+ * "out of Greece" placeholder. /api/resolve covers browsers that can't make the
+ * cross-origin request. Either way a failure yields the catalogue URL rather
+ * than nothing, so an outage never trips markDead() on its own.
  */
 async function resolveStream(ch) {
-  if (!RESOLVED_IDS.has(ch.id)) return ch.stream;
+  const resolver = RESOLVERS[ch.id];
+  if (!resolver) return ch.stream;
+
+  const here = await resolveHere(resolver);
+  if (here) return here;
+
   try {
     const res = await fetch(`/api/resolve?ch=${ch.id}`, { headers: { accept: "application/json" } });
     const data = await res.json();

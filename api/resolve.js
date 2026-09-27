@@ -5,6 +5,12 @@
 // catalogue entry is only a fallback and this route returns what the broadcaster
 // is serving right now, so playback doesn't rot when the URL moves.
 //
+// The page resolves for itself first and only falls back here, because these
+// endpoints answer per region: from Vercel's Frankfurt region tvopen.gr returns
+// its "out of Greece" placeholder, which `hosts` then rejects. This route still
+// earns its place for viewers whose browser can't make the cross-origin request
+// (an extension, strict privacy mode), and it is where the 60s cache lives.
+//
 // `source` tells the caller what it got: "live" straight from the broadcaster,
 // "cache" from the short module-scope cache, or "fallback" when the endpoint
 // failed or returned a URL we don't accept. A fallback carries `detail` saying
@@ -17,7 +23,7 @@
 // resolver declared in lib/resolvers.js, so a changed or hostile upstream cannot
 // redirect playback to an arbitrary origin.
 
-import { RESOLVERS } from "../lib/resolvers.js";
+import { RESOLVERS, acceptableUrl } from "../lib/resolvers.js";
 import { BY_ID } from "../lib/channels.js";
 
 const TTL_MS = 60 * 1000;
@@ -29,20 +35,6 @@ const UA =
 /** channel id -> { at, stream } */
 const cache = new Map();
 
-/** A resolved URL counts only if it is https and on a host the resolver declared. */
-function acceptable(raw, resolver) {
-  if (typeof raw !== "string" || !raw) return null;
-  let url;
-  try {
-    url = new URL(raw);
-  } catch {
-    return null;
-  }
-  if (url.protocol !== "https:" && url.protocol !== "http:") return null;
-  if (!resolver.hosts.includes(url.host.toLowerCase())) return null;
-  return url.href;
-}
-
 /** @returns {Promise<{url: string|null, detail?: string}>} */
 async function resolveLive(resolver) {
   const abort = new AbortController();
@@ -52,7 +44,6 @@ async function resolveLive(resolver) {
       headers: {
         "user-agent": UA,
         accept: "application/json, text/javascript, */*",
-        referer: resolver.referer,
       },
       redirect: "follow",
       signal: abort.signal,
@@ -77,7 +68,7 @@ async function resolveLive(resolver) {
       return { url: null, detail: "response carried no stream URL" };
     }
 
-    const url = acceptable(raw, resolver);
+    const url = acceptableUrl(raw, resolver);
     if (url) return { url };
 
     // Name the host: these endpoints can answer differently per region, and a
