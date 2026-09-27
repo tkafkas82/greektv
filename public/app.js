@@ -753,9 +753,18 @@ function paintPlayerGuide(ch) {
  * The switcher walks whatever the grid is currently showing, so a search or a
  * category filter carries into the player instead of being forgotten there.
  */
+/**
+ * The reel holds only what is the same kind as the channel playing: the six
+ * stations while a station is on, the TV channels otherwise. Stepping from a
+ * station straight into a TV channel is never what zapping means, and on radio
+ * the list should be the other stations rather than all 71 playable channels.
+ */
+const reelFor = (ch) => visible().filter((c) => Boolean(c.audio) === Boolean(ch && ch.audio));
+
 function buildSwitcher() {
-  reel = visible();
-  switchCount.textContent = `Κανάλια · ${reel.length}`;
+  reel = reelFor(playing);
+  const radio = playing && playing.audio;
+  switchCount.textContent = `${radio ? "Σταθμοί" : "Κανάλια"} · ${reel.length}`;
 
   const frag = document.createDocumentFragment();
   for (const ch of reel) {
@@ -865,6 +874,12 @@ async function loadChannel(ch, { push = true } = {}) {
   // Anything other than the station already loaded takes over the audio.
   if (radioCh && (!ch.audio || ch.id !== radioCh.id)) stopRadio();
   playing = ch;
+
+  // The reel is scoped by kind, so crossing between radio and TV - by deep
+  // link, or by Back - has to rebuild it. Switching within a kind does not.
+  if (player.hasAttribute("open") && reel.some((c) => Boolean(c.audio) !== Boolean(ch.audio))) {
+    buildSwitcher();
+  }
   playingUrl = ch.stream;
   usedRelay = false;
 
