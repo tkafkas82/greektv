@@ -32,6 +32,16 @@ const ALLOWED_HOSTS = new Set(
   }).filter(Boolean)
 );
 
+// Some CDNs allowlist the referer their own player sends and reject everything
+// else - including the stream host's own name, which is what we build by
+// default. Ant1's edge answers 200 to watch.antennaplus.gr and 403 to
+// mcdn.antennaplus.gr, so without this the relay cannot fetch a channel whose
+// URL is perfectly good. Values come from the iptv-org playlist's
+// http-referrer hints.
+const HOST_REFERER = {
+  "mcdn.antennaplus.gr": "http://watch.antennaplus.gr/",
+};
+
 const SECRET = process.env.STREAM_PROXY_SECRET || "";
 const MANIFEST_BYTES = 8 * 1024 * 1024; // a playlist should never approach this
 const UA =
@@ -142,12 +152,15 @@ export default async function handler(req, res) {
     return;
   }
 
+  // Several Greek stream hosts check these before serving a manifest. Origin is
+  // derived from the referer rather than set separately, so the pair can never
+  // disagree - a mismatched one is itself grounds for a 403 on these edges.
+  const referer = HOST_REFERER[target.host.toLowerCase()] || `${target.protocol}//${target.host}/`;
   const headers = {
     "user-agent": UA,
     accept: "*/*",
-    // Several Greek stream hosts check these before serving a manifest.
-    referer: `${target.protocol}//${target.host}/`,
-    origin: `${target.protocol}//${target.host}`,
+    referer,
+    origin: new URL(referer).origin,
   };
   if (req.headers.range) headers.range = req.headers.range;
 

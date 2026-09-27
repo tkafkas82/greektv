@@ -79,7 +79,8 @@ Because that URL rotates, the catalogue entry is only a fallback and the live on
 is fetched at play time — see [`GET /api/resolve`](#get-apiresolve).
 
 **Public IPTV URLs rot, so the app learns which ones are dead.** A probe of all
-65 at the time of writing found **13 already gone** — Ant1 on `403`, both ERT
+65 at the time of writing found **13 already gone** — Ant1 on `403` (since
+traced to a referer mismatch in the relay, not a dead URL; see below), both ERT
 Sports feeds timing out, four `404`s, two `500`s, two rejected certificate
 chains and two unreachable hosts. Rather than freeze that verdict into the
 catalogue (a browser may succeed where the probe didn't, and hosts recover), the
@@ -236,6 +237,14 @@ content on an https page) and most stream hosts send no
 `Access-Control-Allow-Origin` (hls.js fetches over XHR). For a manifest it
 rewrites every referenced URI back through itself; everything else is piped
 through.
+
+Some edges allowlist the referer their own player sends and reject everything
+else — *including the stream host’s own name*, which is what the relay builds by
+default. Ant1’s CDN answers `200` to `watch.antennaplus.gr` and `403` to
+`mcdn.antennaplus.gr`, so a perfectly good URL looked dead. `HOST_REFERER` holds
+the per-host value (taken from the iptv-org playlist’s `http-referrer` hints),
+and `Origin` is derived from whichever referer is used so the pair can never
+disagree — a mismatch is itself grounds for a `403` on these edges.
 
 **It is not an open proxy.** Requests are refused unless the host appears in a
 stream URL in `public/channels.js`. Cross-host segments are accepted only with a
