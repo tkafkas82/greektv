@@ -296,7 +296,12 @@ const ROWS = [
   ["En Lefko 87.7",900,"en-lefko",9,"https://stream.rcs.revma.com/kwste9dz1duvv",null,"https://www.enlefko.fm/"],
   ["Pepper 96.6",901,"pepper",9,"https://netradio.live24.gr/pepper9660",null,"https://www.pepper966.gr/"],
   ["ERT Kosmos",902,"ert-kosmos",9,"https://radiostreaming.ert.gr/ert-kosmos",null,"https://www.ertecho.gr/radio/kosmos/"],
-  ["Best Radio 92.6",903,"best-radio",9,"https://best.live24.gr/best1222",null,"https://best926.gr/"]
+  ["Best Radio 92.6",903,"best-radio",9,"https://best.live24.gr/best1222",null,"https://best926.gr/"],
+  // Nitro was Pride 98.6, which is why the mount and the Live24 page still say
+  // "pride" and why searching for the current name finds nothing. The stream
+  // sends icy-name "no name", so unlike the others its identity rests on that
+  // Live24 page rather than on the header.
+  ["Nitro Radio 98.6",904,"nitro-radio",9,"https://politismedia-sec.live24.gr/streameepride",null,"https://live24.gr/radio/pride986.jsp"]
 ];
 
 export const CHANNELS = ROWS.map(([name, id, slug, cat, stream, tvg, site]) => ({
