@@ -495,8 +495,17 @@ function teardown() {
   embedNote.hidden = true;
 }
 
-function attach(url) {
+function attach(url, { audio = false } = {}) {
   teardown();
+
+  // Radio is a continuous Icecast stream, not a manifest - hls.js would reject
+  // it outright. The media element plays mp3 and aac natively, so hand it over
+  // and let the "playing" listener clear the note.
+  if (audio) {
+    video.src = url;
+    video.play().catch(() => {});
+    return;
+  }
 
   // hls.js first, always. Chrome reports "maybe" for canPlayType of an HLS
   // manifest but cannot actually play one without MSE, so trusting that check
@@ -549,7 +558,7 @@ function retryOrFail(reason) {
   if (!usedRelay && playing) {
     usedRelay = true;
     showNote("Δοκιμή μέσω διακομιστή…", "Η απευθείας σύνδεση απέτυχε.", { spin: true });
-    attach(relayUrl(playingUrl));
+    attach(relayUrl(playingUrl), { audio: playing.audio });
     return;
   }
   failed(reason);
@@ -747,7 +756,7 @@ async function loadChannel(ch, { push = true } = {}) {
     const mustRelay =
       (url.startsWith("http://") && location.protocol === "https:") || relayOnly(url);
     if (mustRelay) usedRelay = true;
-    attach(mustRelay ? relayUrl(url) : url);
+    attach(mustRelay ? relayUrl(url) : url, { audio: ch.audio });
     return;
   }
 
@@ -902,7 +911,17 @@ document.getElementById("p-copy").addEventListener("click", async () => {
 player.addEventListener("click", (ev) => {
   if (ev.target === player) closePlayer();
 });
-video.addEventListener("playing", hideNote);
+// Native playback - radio, and HLS in Safari - never reaches the hls.js
+// MANIFEST_PARSED handler, so this is where those streams clear their own
+// dead-stream entry. Without it a station that recovered would stay WEB for a
+// day even while it was audibly playing.
+video.addEventListener("playing", () => {
+  hideNote();
+  if (playing && dead[playing.id] !== undefined) {
+    clearDead(playing.id);
+    render();
+  }
+});
 
 // Covers the native-playback path: without this a stream the element cannot
 // decode would sit on "Σύνδεση…" forever. Ignore the synthetic error that

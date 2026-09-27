@@ -17,7 +17,11 @@
 // rejects our Origin. Leaving the URL in place only bought a timeout before the
 // embed loaded anyway. See README.md.
 //
-// Row shape: [name, id, slug, categoryIndex, streamUrl|null, tvgId|null]
+// Row shape: [name, id, slug, categoryIndex, streamUrl|null, tvgId|null, siteUrl?]
+//
+// siteUrl overrides the greektv.live page a card links to and the embed falls
+// back to. Radio stations need it: they are not in the greektv.live directory,
+// so the derived URL would be a 404 in an iframe.
 
 export const CATEGORIES = [
   { key: "national",      label: "Πανελλαδικά",  hue: 218 },
@@ -29,6 +33,7 @@ export const CATEGORIES = [
   { key: "cyprus",        label: "Κύπρος",       hue: 48  },
   { key: "international", label: "Διεθνή",       hue: 258 },
   { key: "webtv",         label: "Web TV",       hue: 100 },
+  { key: "radio",         label: "Ραδιόφωνο",    hue: 358 },
 ];
 
 const ROWS = [
@@ -282,10 +287,18 @@ const ROWS = [
   ["Evripos TV",716,"evripos-tv",8,null,null],
   ["Greece 24",791,"greece-24",8,null,null],
   ["Xylagany Tradition",800,"xylagany-tradition",8,null,null],
-  ["PAKOE",835,"pakoe",8,null,null]
+  ["PAKOE",835,"pakoe",8,null,null],
+
+  // Radio. Ids start at 900 so they cannot collide with the TV directory, whose
+  // highest id is 835. Every stream is Icecast rather than HLS - see attach()
+  // in app.js, which cannot hand these to hls.js. All three are https and send
+  // Access-Control-Allow-Origin, so they play straight from the page.
+  ["En Lefko 87.7",900,"en-lefko",9,"https://stream.rcs.revma.com/kwste9dz1duvv",null,"https://www.enlefko.fm/"],
+  ["Pepper 96.6",901,"pepper",9,"https://netradio.live24.gr/pepper9660",null,"https://www.pepper966.gr/"],
+  ["ERT Kosmos",902,"ert-kosmos",9,"https://radiostreaming.ert.gr/ert-kosmos",null,"https://www.ertecho.gr/radio/kosmos/"]
 ];
 
-export const CHANNELS = ROWS.map(([name, id, slug, cat, stream, tvg]) => ({
+export const CHANNELS = ROWS.map(([name, id, slug, cat, stream, tvg, site]) => ({
   id,
   name,
   slug,
@@ -294,7 +307,9 @@ export const CHANNELS = ROWS.map(([name, id, slug, cat, stream, tvg]) => ({
   tvg,
   category: CATEGORIES[cat].key,
   hue: CATEGORIES[cat].hue,
-  watchUrl: `https://www.greektv.live/tv/channel/${id}/${slug}`,
+  /** True for an Icecast/audio stream rather than an HLS manifest. */
+  audio: CATEGORIES[cat].key === "radio",
+  watchUrl: site || `https://www.greektv.live/tv/channel/${id}/${slug}`,
 }));
 
 export const BY_ID = new Map(CHANNELS.map((c) => [c.id, c]));
