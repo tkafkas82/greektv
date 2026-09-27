@@ -614,9 +614,11 @@ function showRadioStage() {
 function paintMiniBar() {
   if (!radioCh) {
     minibar.hidden = true;
+    document.body.classList.remove("with-bar");
     return;
   }
   minibar.hidden = player.hasAttribute("open");
+  document.body.classList.toggle("with-bar", !minibar.hidden);
   minibar.style.setProperty("--h", CATEGORIES[radioCh.cat].hue);
   document.getElementById("mb-plate").textContent = radioCh.initials;
   document.getElementById("mb-name").textContent = radioCh.name;
@@ -635,6 +637,7 @@ function stopRadio() {
   radio.load();
   radioCh = null;
   minibar.hidden = true;
+  document.body.classList.remove("with-bar");
 }
 
 document.getElementById("mb-toggle").addEventListener("click", () => {
@@ -989,6 +992,7 @@ function openPlayer(ch, { push = true } = {}) {
   player.setAttribute("open", "");
   document.body.style.overflow = "hidden";
   minibar.hidden = true;
+  document.body.classList.remove("with-bar");
   buildSwitcher();
   loadChannel(ch, { push });
   document.getElementById("p-close").focus();

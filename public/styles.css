@@ -404,13 +404,23 @@ button{font:inherit; color:inherit}
 .radio-stage b{font-size:18px}
 .rs-now{color:var(--muted); font-size:14px; max-width:36ch; line-height:1.45}
 
-/* The bar is what survives closing the player. */
+/* The bar is what survives closing the player.
+
+   Full-bleed on purpose. Inset with left/right the bar is mis-sized on iOS,
+   where the visual viewport changes as the toolbar collapses on scroll, and any
+   inset leaves room for it to look wider than the screen. Pinned to all three
+   edges with no horizontal inset there is nothing to get wrong, and the bottom
+   padding clears the home indicator. */
 .minibar{
-  position:fixed; left:12px; right:12px; bottom:12px; z-index:40;
+  position:fixed; left:0; right:0; bottom:0; z-index:40;
+  width:100%; max-width:100%; box-sizing:border-box; overflow:hidden;
   display:flex; align-items:center; gap:8px;
-  padding:8px; border-radius:10px;
-  background:var(--surface); border:1px solid var(--line);
-  box-shadow:0 10px 30px rgb(0 0 0 / .22);
+  padding:8px 10px calc(8px + env(safe-area-inset-bottom, 0px));
+  padding-left:calc(10px + env(safe-area-inset-left, 0px));
+  padding-right:calc(10px + env(safe-area-inset-right, 0px));
+  border-radius:12px 12px 0 0;
+  background:var(--surface); border:1px solid var(--line); border-bottom:0;
+  box-shadow:0 -6px 24px rgb(0 0 0 / .18);
 }
 .minibar[hidden]{display:none}
 
@@ -423,7 +433,8 @@ button{font:inherit; color:inherit}
   font-family:var(--mono); font-weight:600; font-size:12px;
   color:hsl(var(--h) 60% 92%); background:hsl(var(--h) 45% 26%);
 }
-.mb-txt{display:grid; min-width:0; line-height:1.3}
+.mb-txt{display:grid; grid-template-columns:minmax(0,1fr); min-width:0; line-height:1.3}
+.mb-txt > *{min-width:0}
 .mb-txt b{font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .mb-txt span{font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 
@@ -434,9 +445,12 @@ button{font:inherit; color:inherit}
 .mb-btn:hover{border-color:var(--accent); color:var(--ink)}
 .mb-open:focus-visible, .mb-btn:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
 
-@media (max-width: 880px){
-  .minibar{left:8px; right:8px; bottom:8px}
-}
+/* A fixed bar covers whatever is under it, so the page reserves the space while
+   it is up - otherwise the last row of cards sits behind it. */
+body.with-bar{padding-bottom:calc(64px + env(safe-area-inset-bottom, 0px))}
+
+/* Nothing to adjust on narrow screens any more - the bar is already full-bleed
+   at every width, which is also what it should look like on a phone. */
 
 /* ---------------- PWA: launch splash and install button ---------------- */
 /* Hidden in a browser tab and shown only in an installed window, so a normal
