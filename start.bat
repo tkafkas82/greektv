@@ -23,7 +23,8 @@ echo   Greek TV ^& Radio  -  http://localhost:%PORT%
 echo   Press Ctrl+C to stop.
 echo.
 
-start "" "http://localhost:%PORT%"
+rem Open the browser only once the server answers, or it lands on an error page.
+start "" /b powershell -NoProfile -Command "$u='http://localhost:%PORT%'; for($i=0;$i -lt 60;$i++){ try { Invoke-WebRequest $u -UseBasicParsing -TimeoutSec 2 | Out-Null; Start-Process $u; break } catch { Start-Sleep -Milliseconds 500 } }"
 node server.mjs
 
 pause
