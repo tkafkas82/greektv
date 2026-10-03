@@ -4,3 +4,4 @@
 *.png binary
 *.webp binary
 *.ico binary
+*.bat text eol=crlf
