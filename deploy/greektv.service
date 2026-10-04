@@ -1,0 +1,31 @@
+# systemd unit for Greek TV & Radio. setup.sh installs it to
+# /etc/systemd/system/greektv.service.
+
+[Unit]
+Description=Greek TV & Radio
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=greektv
+Group=greektv
+WorkingDirectory=/opt/greektv
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=3000
+# STREAM_PROXY_SECRET lives here, outside the repo.
+EnvironmentFile=-/etc/greektv.env
+ExecStart=/usr/bin/node server.mjs
+Restart=always
+RestartSec=3
+
+# Hardening: the app only reads its own files and talks to the network.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadOnlyPaths=/opt/greektv
+
+[Install]
+WantedBy=multi-user.target

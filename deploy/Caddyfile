@@ -1,0 +1,22 @@
+# Caddy front for Greek TV & Radio on a VM. setup.sh copies this to
+# /etc/caddy/Caddyfile with your domain in place of greektv.example.com.
+# Caddy obtains and renews the HTTPS certificate on its own, as long as
+# ports 80 and 443 are reachable.
+
+greektv.example.com {
+	encode zstd gzip
+
+	# Same headers vercel.json sets in production.
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+	header /api/stream X-Robots-Tag noindex
+	header /logos/* Cache-Control "public, max-age=604800"
+
+	reverse_proxy 127.0.0.1:3000 {
+		# Pass segments through as they arrive instead of buffering them.
+		flush_interval -1
+	}
+}

@@ -2,6 +2,7 @@
 //
 //   npm start            -> http://localhost:3000
 //   PORT=8080 npm start
+//   HOST=127.0.0.1 npm start   (listen on loopback only, e.g. behind Caddy)
 //
 // It serves public/ and hands /api/* to the same handler modules Vercel runs in
 // production, so what you see locally is what deploys. Vercel ignores this file.
@@ -20,6 +21,7 @@ import trackHandler from "./api/track.js";
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
 const PUBLIC_DIR = join(ROOT, "public");
 const PORT = Number(process.env.PORT) || 3000;
+const HOST = process.env.HOST || undefined; // undefined = every interface
 
 const ROUTES = {
   "/api/epg": epgHandler,
@@ -101,7 +103,7 @@ const server = createServer(async (req, res) => {
   send(res, 200, file.body, { "content-type": file.type, "cache-control": "no-store" });
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, HOST, () => {
   console.log(`Greek TV & Radio  ->  http://localhost:${PORT}`);
   console.log(`  guide:  http://localhost:${PORT}/api/epg`);
   if (!process.env.STREAM_PROXY_SECRET) {

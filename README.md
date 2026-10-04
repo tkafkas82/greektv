@@ -35,6 +35,10 @@ install step to run.
 
 Optionally set `STREAM_PROXY_SECRET` (see [Environment](#environment)).
 
+**Vercel's Hobby plan meters relayed video** (10 GB/month Fast Origin
+Transfer), which `/api/stream` uses up quickly. For a free deployment without
+that limit, run it on a VM instead: see [`deploy/README.md`](deploy/README.md).
+
 ---
 
 ## What actually works, and what doesn't
