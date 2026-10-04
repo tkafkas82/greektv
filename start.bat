@@ -18,8 +18,15 @@ if exist ".env.local" (
 )
 if not defined PORT set "PORT=3000"
 
+rem First run: create a STREAM_PROXY_SECRET so cross-host streams relay too.
+if not defined STREAM_PROXY_SECRET (
+  for /f "usebackq delims=" %%S in (`node -e "process.stdout.write(require('crypto').randomBytes(32).toString('base64url'))"`) do set "STREAM_PROXY_SECRET=%%S"
+  call :save_secret
+)
+
 echo.
 echo   Greek TV ^& Radio  -  http://localhost:%PORT%
+for /f "usebackq delims=" %%U in (`node -e "for (const a of Object.values(require('os').networkInterfaces()).flat()) if (a.family==='IPv4' && !a.internal) console.log('http://'+a.address+':%PORT%')"`) do echo   Phone / TV on the same Wi-Fi  -  %%U
 echo   Press Ctrl+C to stop.
 echo.
 
@@ -29,3 +36,8 @@ node server.mjs
 
 pause
 endlocal
+exit /b
+
+:save_secret
+>>.env.local echo STREAM_PROXY_SECRET=%STREAM_PROXY_SECRET%
+exit /b
