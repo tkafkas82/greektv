@@ -423,6 +423,13 @@ button{font:inherit; color:inherit}
 .stage .note[open]{display:grid}
 .stage .note b{display:block; font-family:var(--disp); font-size:15px; color:#fff; margin-bottom:6px}
 .stage .note a{color:#8FB4FF}
+.stage .note a.golive{
+  display:block; width:max-content; margin:14px auto 0; padding:8px 16px;
+  background:var(--accent); color:#fff; border-radius:6px;
+  font-weight:600; text-decoration:none;
+}
+.stage .note a.golive:hover{filter:brightness(1.1)}
+.stage .note a.golive:focus-visible{outline:2px solid #fff; outline-offset:2px}
 .stage .note .spin{
   width:22px; height:22px; margin:0 auto 10px; border-radius:50%;
   border:2px solid rgba(255,255,255,.2); border-top-color:#fff; animation:spin .8s linear infinite;

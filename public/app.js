@@ -84,6 +84,9 @@ function clearDead(id) {
 const playsDirect = (ch) => Boolean(ch.stream) && !isDead(ch.id);
 const directCount = () => CHANNELS.filter(playsDirect).length;
 
+/** Hostname of the page a channel links out to, for labels. */
+const siteHost = (ch) => new URL(ch.watchUrl).hostname.replace(/^www./, "");
+
 /** The card/switcher tag: LIVE, WEB (embedded page), or N/A (nothing works). */
 const tagFor = (ch) =>
   playsDirect(ch) ? { cls: "live", text: "LIVE" }
@@ -223,8 +226,8 @@ function card(ch) {
 
   const ext = el.querySelector(".ext");
   ext.href = ch.watchUrl;
-  ext.setAttribute("aria-label", `${ch.name} στο greektv.live`);
-  ext.title = "Άνοιγμα στο greektv.live";
+  ext.setAttribute("aria-label", `${ch.name} στο ${siteHost(ch)}`);
+  ext.title = `Άνοιγμα στο ${siteHost(ch)}`;
   ext.addEventListener("click", (ev) => ev.stopPropagation());
 
   const star = el.querySelector(".fav");
@@ -1134,10 +1137,13 @@ async function loadChannel(ch, { push = true } = {}) {
   // Its embedded page doesn't play either, so say so rather than load it.
   if (ch.unavailable) {
     syncStage();
+    // watchUrl is the broadcaster's own live page for these (siteUrl in the
+    // catalogue), so this hands the viewer to where it does play.
     showNote(
-      "Μη διαθέσιμο",
-      "Αυτό το κανάλι δεν μπορεί να προβληθεί εδώ: δεν υπάρχει ανοιχτή ροή και ο " +
-        "πάροχος μπλοκάρει την ενσωμάτωσή του. Δείτε το στον ιστότοπο του σταθμού."
+      "Μη διαθέσιμο εδώ",
+      "Δεν υπάρχει ανοιχτή ροή και ο σταθμός μπλοκάρει την ενσωμάτωσή του." +
+        `<a class="golive" href="${ch.watchUrl}" target="_blank" rel="noopener">` +
+        `Ζωντανά στο ${siteHost(ch)} ↗</a>`
     );
     return;
   }
