@@ -8,7 +8,7 @@
 // (https://iptv-org.github.io/iptv/countries/gr.m3u), except where a broadcaster
 // publishes its own live manifest and iptv-org does not carry the channel, in
 // which case the URL here is a fallback and public/resolvers.js says how to get
-// the current one. Only 65 of the 251 channels have a stream; the rest are
+// the current one. Only 67 of the 251 channels have a stream; the rest are
 // directory-only. See README.md.
 //
 // Ant1 is deliberately null although iptv-org lists a URL for it: that stream is
@@ -63,8 +63,8 @@ export const CATEGORY_ORDER = DISPLAY_ORDER.map((key) => {
 });
 
 const ROWS = [
-  ["ERT 1",1,"ert-1",0,null,null],
-  ["ERT 2 Sports",2,"ert-2-sports",0,null,null],
+  ["ERT 1",1,"ert-1",0,"https://ert-ucdn.broadpeak-aas.com/bpk-tv/ERT1/default/index.m3u8",null],
+  ["ERT 2 Sports",2,"ert-2-sports",0,"https://ert-ucdn.broadpeak-aas.com/bpk-tv/ERT2/default/index.m3u8",null],
   ["ERT 3",3,"ert-3",0,"https://ert-ucdn.broadpeak-aas.com/bpk-tv/ERT3/default/index.m3u8","ERT3.gr@SD"],
   ["Mega",6,"mega",0,null,null,"https://www.megatv.com/live/"],
   ["Ant1",5,"ant1",0,null,"ANT1.gr@SD","https://www.antenna.gr/live"],

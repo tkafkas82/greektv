@@ -73,9 +73,13 @@ embedding the streams. Those streams are therefore not used here at all.
 Instead, streams come from the **openly published
 [iptv-org Greek playlist](https://iptv-org.github.io/iptv/countries/gr.m3u)**.
 Matching its 71 entries against the catalogue by name yields 65 channels with a
-playable HLS URL, minus Ant1 (below) and plus Open Beyond, so **65** are marked
-`LIVE`. The other 186 fall back to the embedded page described above, so they
+playable HLS URL, minus Ant1 (below) and plus Open Beyond, ERT 1 and ERT 2 Sports, so **67** are marked
+`LIVE`. The other 184 fall back to the embedded page described above, so they
 still play without leaving the grid.
+
+ERT 1 and ERT 2 Sports are not in iptv-org but come from the same ERT CDN as
+ERT 3 and ERT News (`ert-ucdn.broadpeak-aas.com/bpk-tv/<NAME>/default/index.m3u8`),
+which sends CORS headers, so the browser plays them directly.
 
 **Ant1 is deliberately `null`** although iptv-org lists a URL for it. Two
 separate things block it, and neither is fixable in code:
@@ -564,7 +568,7 @@ an XMLTV guide can be matched to it later.
 
 ```bash
 node scripts/export-m3u.mjs --check                   # one file, verified
-node scripts/export-m3u.mjs                           # one file, all 65
+node scripts/export-m3u.mjs                           # one file, all 67
 node scripts/export-m3u.mjs --check --split category  # m3u/categories/*.m3u
 node scripts/export-m3u.mjs --check --split channel   # m3u/channels/*.m3u
 node scripts/export-m3u.mjs --out other.m3u           # where --split one writes

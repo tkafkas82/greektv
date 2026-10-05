@@ -1,6 +1,6 @@
 // Export the channels that have an open stream as an M3U playlist for VLC.
 //
-//   node scripts/export-m3u.mjs                        # all 65 in one file
+//   node scripts/export-m3u.mjs                        # all 67 in one file
 //   node scripts/export-m3u.mjs --check                # probe first, drop dead
 //   node scripts/export-m3u.mjs --split channel        # one file per channel
 //   node scripts/export-m3u.mjs --split category       # one file per category
