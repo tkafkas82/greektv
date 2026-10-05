@@ -17,6 +17,13 @@
 // rejects our Origin. Leaving the URL in place only bought a timeout before the
 // embed loaded anyway. See README.md.
 //
+// Ant1 and Mega are also marked UNAVAILABLE, because their embed fallback is
+// dead too (checked 2026-10-05 from a Greek IP): on greektv.live, Ant1 shows
+// "Σφάλμα αναπαραγωγής" as its CDN refuses the page's Origin, and Mega's
+// Vindral player is refused with "Domain not allowed". Mega's player would
+// still accept our origin, but that refusal is the broadcaster blocking
+// aggregators on purpose, so we don't route around it.
+//
 // Row shape: [name, id, slug, categoryIndex, streamUrl|null, tvgId|null, siteUrl?]
 //
 // siteUrl overrides the greektv.live page a card links to and the embed falls
@@ -59,8 +66,8 @@ const ROWS = [
   ["ERT 1",1,"ert-1",0,null,null],
   ["ERT 2 Sports",2,"ert-2-sports",0,null,null],
   ["ERT 3",3,"ert-3",0,"https://ert-ucdn.broadpeak-aas.com/bpk-tv/ERT3/default/index.m3u8","ERT3.gr@SD"],
-  ["Mega",6,"mega",0,null,null],
-  ["Ant1",5,"ant1",0,null,"ANT1.gr@SD"],
+  ["Mega",6,"mega",0,null,null,"https://www.megatv.com/live/"],
+  ["Ant1",5,"ant1",0,null,"ANT1.gr@SD","https://www.antenna.gr/live"],
   ["Alpha",4,"alpha",0,"https://alphatvlive2.siliconweb.com/alphatvlive/live_abr/playlist.m3u8","AlphaTV.gr@SD"],
   ["Star",9,"star",0,"http://livestar.siliconweb.com/starvod/star4/star4.m3u8","StarChannel.gr@SD"],
   ["Open Beyond",7,"open-beyond",0,"https://liveopen.siliconweb.com/openTvLive/liveopen/chunks.m3u8",null],
@@ -358,6 +365,10 @@ const ROWS = [
   ["Radio Popolare (Ιταλία)",920,"radio-popolare",10,"https://livex.radiopopolare.it/radiopop",null,"https://www.radiopopolare.it/"]
 ];
 
+// Channels with neither an open stream nor a working embed. The card stays in
+// the grid but says so, and opening it shows a notice instead of a dead page.
+const UNAVAILABLE = new Set(["ant1", "mega"]);
+
 export const CHANNELS = ROWS.map(([name, id, slug, cat, stream, tvg, site]) => ({
   id,
   name,
@@ -370,6 +381,7 @@ export const CHANNELS = ROWS.map(([name, id, slug, cat, stream, tvg, site]) => (
   /** True for an Icecast/audio stream rather than an HLS manifest. */
   audio: AUDIO.has(CATEGORIES[cat].key),
   watchUrl: site || `https://www.greektv.live/tv/channel/${id}/${slug}`,
+  unavailable: UNAVAILABLE.has(slug),
 }));
 
 export const BY_ID = new Map(CHANNELS.map((c) => [c.id, c]));

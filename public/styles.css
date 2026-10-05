@@ -269,6 +269,9 @@ button{font:inherit; color:inherit}
 .sub .live::before{content:""; width:5px; height:5px; border-radius:50%; background:currentColor}
 /* WEB = no open stream, so the channel's own page is embedded instead. */
 .sub .web{color:var(--muted); font-weight:600; letter-spacing:.04em; opacity:.8}
+/* N/A = neither a stream nor a working embed. */
+.sub .na{color:var(--muted); font-weight:600; letter-spacing:.04em; opacity:.6; text-decoration:line-through}
+.ch:has(.sub .na) .plate{filter:grayscale(1); opacity:.55}
 
 /* now playing */
 .now{
@@ -399,6 +402,7 @@ button{font:inherit; color:inherit}
   color:var(--muted); border:1px solid var(--line); border-radius:3px; padding:0 3px;
 }
 .sw .tag.on{color:var(--signal); border-color:var(--signal)}
+.sw .tag.na{opacity:.6; text-decoration:line-through}
 
 .embed-note{
   margin:4px 0 0; font-size:11.5px; line-height:1.45; color:var(--muted);

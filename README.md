@@ -87,7 +87,17 @@ separate things block it, and neither is fixable in code:
 
 Keeping the URL only bought viewers a timeout before the embed loaded, so the
 entry is `null` and Ant1 goes straight to its embedded page. Running the server
-from inside Greece (`npm start`) does play it, via the relay.
+from inside Greece would play it via the relay, but only after restoring the URL:
+the relay only allows hosts that are in the catalogue.
+
+**Ant1 and Mega are marked unavailable (`N/A`)**, because their embed fallback
+fails as well (checked 2026-10-05 from a Greek IP). On greektv.live, Ant1 shows
+"Σφάλμα αναπαραγωγής" because its CDN rejects that page's `Origin`. Mega's
+Vindral player answers `Domain not allowed` for greektv.live. It would accept our
+origin, but that block is the broadcaster shutting out aggregators on purpose, so
+we don't route around it. Their cards stay in the grid, greyed out with an `N/A`
+tag. Opening one shows a notice instead of a dead page, and the ↗ link goes to
+the broadcaster's own live page. The list is `UNAVAILABLE` in `public/channels.js`.
 
 One channel is added on top of that: **Open Beyond**, which iptv-org does not
 carry. Its broadcaster publishes the current manifest itself, from the JSON the

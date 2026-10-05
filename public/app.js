@@ -84,6 +84,12 @@ function clearDead(id) {
 const playsDirect = (ch) => Boolean(ch.stream) && !isDead(ch.id);
 const directCount = () => CHANNELS.filter(playsDirect).length;
 
+/** The card/switcher tag: LIVE, WEB (embedded page), or N/A (nothing works). */
+const tagFor = (ch) =>
+  playsDirect(ch) ? { cls: "live", text: "LIVE" }
+  : ch.unavailable ? { cls: "na", text: "N/A" }
+  : { cls: "web", text: "WEB" };
+
 /* ------------------------------------------------------------ text utils */
 // Greek keyboard -> Latin, so typing "σκαι" finds "Skai".
 const GREEK_LATIN = {
@@ -197,7 +203,7 @@ function card(ch) {
       `<span class="nm"></span>` +
       `<span class="sub">` +
         `<span class="cn"></span><span>${cat.label}</span>` +
-        `<span class="${playsDirect(ch) ? "live" : "web"}">${playsDirect(ch) ? "LIVE" : "WEB"}</span>` +
+        `<span class="${tagFor(ch).cls}">${tagFor(ch).text}</span>` +
       `</span>` +
       `<span class="now none">—</span>` +
     `</span>` +
@@ -985,12 +991,12 @@ function buildSwitcher() {
     btn.innerHTML =
       '<span class="mini" aria-hidden="true"></span>' +
       '<span class="body"><span class="t"></span><span class="g"></span></span>' +
-      `<span class="tag${playsDirect(ch) ? " on" : ""}"></span>`;
+      `<span class="tag${playsDirect(ch) ? " on" : ch.unavailable ? " na" : ""}"></span>`;
     paintPlate(btn.querySelector(".mini"), ch);
     btn.querySelector(".t").textContent = ch.name;
     btn.querySelector(".g").textContent =
       entry && entry.now ? entry.now.title : CATEGORIES[ch.cat].label;
-    btn.querySelector(".tag").textContent = playsDirect(ch) ? "LIVE" : "WEB";
+    btn.querySelector(".tag").textContent = tagFor(ch).text;
     btn.addEventListener("click", () => loadChannel(ch));
     li.appendChild(btn);
     frag.appendChild(li);
@@ -1122,6 +1128,17 @@ async function loadChannel(ch, { push = true } = {}) {
     if (mustRelay) usedRelay = true;
     attach(mustRelay ? relayUrl(url) : url, { audio: ch.audio });
     syncStage();
+    return;
+  }
+
+  // Its embedded page doesn't play either, so say so rather than load it.
+  if (ch.unavailable) {
+    syncStage();
+    showNote(
+      "Μη διαθέσιμο",
+      "Αυτό το κανάλι δεν μπορεί να προβληθεί εδώ: δεν υπάρχει ανοιχτή ροή και ο " +
+        "πάροχος μπλοκάρει την ενσωμάτωσή του. Δείτε το στον ιστότοπο του σταθμού."
+    );
     return;
   }
 
