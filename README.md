@@ -109,7 +109,7 @@ tvopen.gr embed player reads, so nothing here decrypts anyone else’s bundle.
 Because that URL rotates, the catalogue entry is only a fallback and the live one
 is fetched at play time — see [`GET /api/resolve`](#get-apiresolve).
 
-**Public IPTV URLs rot, so the app learns which ones are dead.** A probe of all
+**Public IPTV URLs rot, and they also drop the odd request.** A probe of all
 65 at the time of writing found **13 already gone** — Ant1 on `403` (see below),
 both ERT
 Sports feeds timing out, four `404`s, two `500`s, two rejected certificate
@@ -117,16 +117,14 @@ chains and two unreachable hosts. Rather than freeze that verdict into the
 catalogue (a browser may succeed where the probe didn't, and hosts recover), the
 behaviour is:
 
-- A stream that fails is recorded in `localStorage` under `greektv.deadStreams`.
-- That channel's card drops from `LIVE` to `WEB`, and the direct-stream count in
-  the header falls, so nothing promises video it can't deliver.
-- The next visit skips the connection attempt and loads the embedded page
-  immediately instead of making you wait for a timeout.
-- The embed note offers **Δοκιμή ροής ξανά** to force a retry.
-- Entries expire after 24 hours, and a stream that does play clears its own
-  entry, so a recovered host needs no intervention.
-
-The memory is per browser and never leaves it.
+- Every open tries the direct stream first. If it fails, the same URL goes
+  through `/api/stream`; if that fails too, the player makes `STREAM_RETRIES`
+  (2) more rounds 1.5 s apart — direct, then relay — before giving up.
+- Only then does it load the channel's embedded page, with
+  **Δοκιμή ροής ξανά** to start the whole sequence again.
+- Nothing is remembered. A failure doesn't turn the card from `LIVE` to `WEB`,
+  and the next open tries the direct stream again. (Older versions kept a
+  `greektv.deadStreams` list in `localStorage`; the app now deletes it.)
 
 Public IPTV URLs rot. When one dies the player says so and offers the
 greektv.live link rather than spinning forever.
@@ -146,8 +144,8 @@ filtered out of the grid.
 Seven Greek stations sit in **Ραδιόφωνο** and fourteen European ones in **Ευρώπη
 FM**. Both categories are audio (`AUDIO` in `channels.js`), and a station
 behaves like any other
-card — search, favourites, deep links, the `LIVE`/`WEB` tag and the dead-stream
-memory all apply unchanged.
+card — search, favourites, deep links, the `LIVE`/`WEB` tag and the stream
+retries all apply unchanged.
 
 | Station | Stream | Format |
 |---|---|---|
@@ -191,9 +189,8 @@ Two things differ from TV, both in code rather than data:
 
 - **They are Icecast, not HLS.** `attach()` takes an `audio` branch that hands
   the URL straight to the media element; hls.js would reject a continuous stream
-  that has no manifest. That branch is also why the `playing` listener now clears
-  the dead-stream entry — native playback never reaches hls.js’s
-  `MANIFEST_PARSED`, so without it a recovered station stayed `WEB` for a day.
+  that has no manifest. That branch is also why the `playing` listener hides the
+  connecting note — native playback never reaches hls.js’s `MANIFEST_PARSED`.
 - **They are not in the greektv.live directory**, so the derived `watchUrl` would
   be a 404 in an iframe. The row shape gained an optional seventh field, a
   `siteUrl`, pointing at the station’s own site instead.
@@ -410,8 +407,8 @@ of the session instead of paying for a request that won’t work there. This rou
 is also where the 60-second cache lives.
 
 Both paths can fail, and then the catalogue URL is used as-is. That is the
-honest state of it: when neither path resolves, a rotated URL is caught by the
-dead-stream memory above and the channel falls back to its embedded page.
+honest state of it: when neither path resolves, a rotated URL fails its retries and the
+channel falls back to its embedded page.
 
 `source` is `live` (fetched from the broadcaster), `cache` or `fallback`. A
 fallback carries `detail` saying why, because the usual causes are invisible from
@@ -429,8 +426,7 @@ channel.
 
 Channels without a resolver return `404`, and the player only resolves ids listed
 in `RESOLVERS`, so the other 250 cards open with no extra request. A failed
-resolve yields the catalogue URL rather than nothing, so it never trips the
-dead-stream memory on its own.
+resolve yields the catalogue URL rather than nothing.
 
 ### `GET /api/track`
 
@@ -463,8 +459,8 @@ Station titles arrive in odd shapes — shouty caps, `Feat.` in the artist — a
 both resolved correctly in testing. No match is a real outcome, not an error: the
 song still saves, with the YouTube link and a **Χωρίς Deezer** marker.
 
-Saved songs live in `localStorage` under `greektv.songs`, like the favourites and
-the dead-stream memory — no account, nothing leaves the device. ♥ on the player
+Saved songs live in `localStorage` under `greektv.songs`, like the favourites —
+no account, nothing leaves the device. ♥ on the player
 stage or the radio bar saves what is on; **Τραγούδια** in the header lists them,
 and once a song is saved that same button opens the list rather than sitting
 there as a dead end.

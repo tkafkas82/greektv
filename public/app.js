@@ -10,10 +10,11 @@ const TICK_MS = 30 * 1000;
 // Tracks change far faster than programmes, but each poll reads a live stream
 // server-side, so this is as tight as is polite to the stations.
 const SONG_REFRESH_MS = 35 * 1000;
-// How long a stream stays written off after it fails. Public IPTV URLs come
-// back as often as they go away, so this is a memory with a short fuse, not a
-// permanent verdict.
-const DEAD_TTL_MS = 24 * 60 * 60 * 1000;
+// Extra rounds a failing stream gets (after the direct try and the relay)
+// before the player shows the channel's page instead. Public hosts drop the odd
+// request, so one bad answer is not a verdict.
+const STREAM_RETRIES = 2;
+const STREAM_RETRY_DELAY_MS = 1500;
 
 /* ---------------------------------------------------------------- storage */
 // Any of these can throw (private windows, blocked site data), so every access
@@ -38,50 +39,17 @@ const store = {
 
 const favs = new Set(Array.isArray(store.get("greektv.favs", [])) ? store.get("greektv.favs", []) : []);
 
-/* ---------------------------------------------------- dead-stream memory --
-   13 of the 65 shipped stream URLs were already dead when this was written,
-   and which ones will differ by the time you read it. Rather than freeze a
-   verdict into the catalogue, the app remembers what failed on this machine:
-   a channel whose stream dies goes straight to its embedded page next time,
-   and its card stops promising direct video. Entries expire after
-   DEAD_TTL_MS, and a stream that plays clears its own entry, so recovery
-   needs no intervention. */
-let dead = store.get("greektv.deadStreams", {});
-if (!dead || typeof dead !== "object" || Array.isArray(dead)) dead = {};
-
-function saveDead() {
-  store.set("greektv.deadStreams", dead);
-}
-
-/** Drop entries that have outlived the TTL, so those streams get another go. */
-function pruneDead() {
-  const now = Date.now();
-  let changed = false;
-  for (const [id, at] of Object.entries(dead)) {
-    if (typeof at !== "number" || now - at >= DEAD_TTL_MS) {
-      delete dead[id];
-      changed = true;
-    }
-  }
-  if (changed) saveDead();
-}
-pruneDead();
-
-const isDead = (id) => typeof dead[id] === "number" && Date.now() - dead[id] < DEAD_TTL_MS;
-
-function markDead(id) {
-  dead[id] = Date.now();
-  saveDead();
-}
-
-function clearDead(id) {
-  if (dead[id] === undefined) return;
-  delete dead[id];
-  saveDead();
+/* Older versions remembered failed streams under greektv.deadStreams and sent
+   the next visit straight to the embedded page. Every open now tries the direct
+   stream first, so drop what they left behind. */
+try {
+  localStorage.removeItem("greektv.deadStreams");
+} catch {
+  // Storage blocked - nothing was saved there either.
 }
 
 /** True when we expect this channel to play video rather than an embed. */
-const playsDirect = (ch) => Boolean(ch.stream) && !isDead(ch.id);
+const playsDirect = (ch) => Boolean(ch.stream);
 const directCount = () => CHANNELS.filter(playsDirect).length;
 
 /** Hostname of the page a channel links out to, for labels. */
@@ -318,7 +286,7 @@ function section(title, hue, list) {
 function render() {
   const list = visible();
 
-  // Counts derive from the same dead-stream memory the cards do, so they are
+  // Counts derive from the same data the cards do, so they are
   // refreshed here rather than by each caller - the two can't drift apart.
   // Before the early return below, so an empty result still updates them.
   refreshCounts();
@@ -501,6 +469,9 @@ let songs = new Map();
 /** The URL actually attached, which for a resolved channel is not ch.stream. */
 let playingUrl = null;
 let usedRelay = false;
+/** Retry rounds spent on the current channel, and the timer for the next one. */
+let retries = 0;
+let retryTimer = null;
 let lastFocus = null;
 /** The channels the prev/next buttons and the switcher walk through. */
 let reel = [];
@@ -516,6 +487,10 @@ function relayOnly(url) {
     return false;
   }
 }
+
+/** http on an https page never loads, and RELAY_ONLY_HOSTS refuse the page. */
+const mustRelay = (url) =>
+  Boolean(url) && ((url.startsWith("http://") && location.protocol === "https:") || relayOnly(url));
 
 /* ---- routing ------------------------------------------------------------
    /c/<slug> is the canonical deep link. #ch=<id> is kept working because it
@@ -595,9 +570,9 @@ function attach(url, { audio = false } = {}) {
   // ahead of hls.js leaves the element erroring out on a stream that would
   // otherwise have worked.
   if (window.Hls && window.Hls.isSupported()) {
-    // Short, shallow retries on purpose. A dead public URL should hand over to
-    // the embedded page in a few seconds; hls.js's defaults spend far longer
-    // retrying a host that is never going to answer.
+    // Short, shallow retries inside hls.js on purpose. retryOrFail() does the
+    // real retrying, alternating direct and relay, which recovers more than
+    // hls.js hammering the same URL for a minute.
     hls = new window.Hls({
       lowLatencyMode: false,
       enableWorker: true,
@@ -613,11 +588,6 @@ function attach(url, { audio = false } = {}) {
     hls.attachMedia(video);
     hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
       hideNote();
-      // It answered, so forget any past failure and let the card say LIVE again.
-      if (playing && dead[playing.id] !== undefined) {
-        clearDead(playing.id);
-        render();
-      }
       video.play().catch(() => {});
     });
     hls.on(window.Hls.Events.ERROR, (_e, data) => {
@@ -717,7 +687,7 @@ radio.addEventListener("error", () => {
 });
 
 /* ------------------------------------------------------------ saved songs */
-// Kept in this browser only, like the favourites and the dead-stream memory:
+// Kept in this browser only, like the favourites:
 // no account, nothing leaves the device. /api/track turns the free text a
 // station broadcasts into a real Deezer link; the YouTube Music link is built
 // from the same text and always works.
@@ -900,34 +870,57 @@ function repaintSongs() {
   paintSaveButtons();
 }
 
-/** A direct hit usually dies on CORS or mixed content; the relay fixes both. */
+/**
+ * A direct hit usually dies on CORS or mixed content; the relay fixes both.
+ * After that come STREAM_RETRIES more rounds - direct first, then relay, unless
+ * the URL can only go through the relay - before falling back to the page.
+ */
 function retryOrFail(reason) {
-  if (!usedRelay && playing) {
+  const ch = playing;
+  if (!ch || retryTimer) return;
+
+  if (!usedRelay) {
     usedRelay = true;
     showNote("Δοκιμή μέσω διακομιστή…", "Η απευθείας σύνδεση απέτυχε.", { spin: true });
-    attach(relayUrl(playingUrl), { audio: playing.audio });
+    attach(relayUrl(playingUrl), { audio: ch.audio });
     return;
   }
+
+  if (retries < STREAM_RETRIES) {
+    retries += 1;
+    const n = retries;
+    const direct = n % 2 === 1 && !mustRelay(playingUrl);
+    teardown();
+    showNote(`Νέα προσπάθεια ${n}/${STREAM_RETRIES}…`, "Η ροή δεν αποκρίθηκε, δοκιμάζουμε ξανά.", {
+      spin: true,
+    });
+    retryTimer = setTimeout(() => {
+      retryTimer = null;
+      // The viewer may have zapped or closed the player during the pause.
+      if (playing !== ch) return;
+      attach(direct ? playingUrl : relayUrl(playingUrl), { audio: ch.audio });
+    }, STREAM_RETRY_DELAY_MS);
+    return;
+  }
+
   failed(reason);
+}
+
+function cancelRetry() {
+  clearTimeout(retryTimer);
+  retryTimer = null;
 }
 
 /**
  * Public IPTV URLs rot, so a dead stream must not be a dead end. Fall back to
  * the channel's own page - the same thing WEB channels use - so the viewer
- * still gets picture without leaving the grid.
+ * still gets picture without leaving the grid. Nothing is remembered: the next
+ * open tries the stream again.
  */
 function failed(reason) {
   const ch = playing;
   teardown();
   if (!ch) return;
-
-  // Remember it, so the next visit skips the wait and the card stops claiming
-  // direct video. render() repaints the LIVE/WEB tags.
-  if (ch.stream) {
-    markDead(ch.id);
-    render();
-  }
-
   showEmbed(ch, reason);
 }
 
@@ -1060,7 +1053,7 @@ async function resolveHere(resolver) {
  * country - the same question from Vercel's Frankfurt region comes back with an
  * "out of Greece" placeholder. /api/resolve covers browsers that can't make the
  * cross-origin request. Either way a failure yields the catalogue URL rather
- * than nothing, so an outage never trips markDead() on its own.
+ * than nothing.
  */
 async function resolveStream(ch) {
   const resolver = RESOLVERS[ch.id];
@@ -1097,6 +1090,8 @@ async function loadChannel(ch, { push = true } = {}) {
   }
   playingUrl = ch.stream;
   usedRelay = false;
+  retries = 0;
+  cancelRetry();
 
   const cat = CATEGORIES[ch.cat];
   player.style.setProperty("--h", cat.hue);
@@ -1126,10 +1121,9 @@ async function loadChannel(ch, { push = true } = {}) {
     // Skip a direct attempt that cannot work: an http stream never loads on an
     // https page, and a host in RELAY_ONLY_HOSTS refuses the page outright.
     // Either way, going straight to the relay saves the viewer a timeout.
-    const mustRelay =
-      (url.startsWith("http://") && location.protocol === "https:") || relayOnly(url);
-    if (mustRelay) usedRelay = true;
-    attach(mustRelay ? relayUrl(url) : url, { audio: ch.audio });
+    const relayed = mustRelay(url);
+    if (relayed) usedRelay = true;
+    attach(relayed ? relayUrl(url) : url, { audio: ch.audio });
     syncStage();
     return;
   }
@@ -1148,10 +1142,8 @@ async function loadChannel(ch, { push = true } = {}) {
     return;
   }
 
-  // Either the channel never had an open stream, or one failed here recently
-  // and we remembered. Straight to the embedded page - no waiting on a host
-  // we already know doesn't answer.
-  showEmbed(ch, ch.stream ? "remembered" : null);
+  // The channel has no open stream: straight to its embedded page.
+  showEmbed(ch, null);
 }
 
 /**
@@ -1159,7 +1151,7 @@ async function loadChannel(ch, { push = true } = {}) {
  * one click away instead of navigating the tab off.
  * @param {object} ch
  * @param {string|null} reason null when the channel simply has no open stream,
- *        "remembered" when one failed here before, otherwise the hls.js detail.
+ *        otherwise the detail of the failure.
  */
 function showEmbed(ch, reason) {
   hideNote();
@@ -1173,22 +1165,18 @@ function showEmbed(ch, reason) {
   } else {
     embedNote.textContent = "";
     embedNote.append(
-      reason === "remembered"
-        ? "Η ροή αυτού του καναλιού απέτυχε πρόσφατα, γι' αυτό φορτώθηκε κατευθείαν η σελίδα του. Πατήστε "
-        : `Η ροή δεν αποκρίθηκε (${reason}), γι' αυτό φορτώθηκε η σελίδα του καναλιού. Πατήστε `
+      `Η ροή δεν αποκρίθηκε (${reason}), γι' αυτό φορτώθηκε η σελίδα του καναλιού. Πατήστε `
     );
     const strong = document.createElement("b");
     strong.textContent = "Δείτε Τώρα";
     embedNote.append(strong, " εκεί για να ξεκινήσει. ");
 
-    // Lets a recovered stream be picked up without waiting out the TTL.
+    // Another go at the stream without leaving the channel.
     const retry = document.createElement("button");
     retry.type = "button";
     retry.className = "retry";
     retry.textContent = "Δοκιμή ροής ξανά";
     retry.addEventListener("click", () => {
-      clearDead(ch.id);
-      render();
       loadChannel(ch, { push: false });
     });
     embedNote.append(retry);
@@ -1227,6 +1215,7 @@ function openPlayer(ch, { push = true } = {}) {
 }
 
 function closePlayer({ push = true } = {}) {
+  cancelRetry();
   teardown();
   player.removeAttribute("open");
   document.body.style.overflow = "";
@@ -1305,17 +1294,11 @@ player.addEventListener("click", (ev) => {
   if (ev.target === player) closePlayer();
 });
 // Native playback - radio, and HLS in Safari - never reaches the hls.js
-// MANIFEST_PARSED handler, so this is where those streams clear their own
-// dead-stream entry. Without it a station that recovered would stay WEB for a
-// day even while it was audibly playing.
+// MANIFEST_PARSED handler, so this is where those streams drop the spinner.
 video.addEventListener("playing", () => {
   hideNote();
   // Picture is up: nothing from the radio side may be covering it.
   syncStage();
-  if (playing && dead[playing.id] !== undefined) {
-    clearDead(playing.id);
-    render();
-  }
 });
 
 // Covers the native-playback path: without this a stream the element cannot
