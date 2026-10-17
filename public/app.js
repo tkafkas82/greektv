@@ -1102,6 +1102,8 @@ async function loadChannel(ch, { push = true } = {}) {
   paintPlayerGuide(ch);
   paintPlayerFav();
   markCurrent();
+  document.getElementById("p-dock").hidden = Boolean(ch.audio || ch.unavailable);
+  document.getElementById("dock-name").textContent = ch.name;
 
   // Reflect the channel in the URL so it survives a reload, can be shared, and
   // gives the browser's Back button something to step through.
@@ -1203,7 +1205,14 @@ function paintPlayerFav() {
 }
 
 function openPlayer(ch, { push = true } = {}) {
+  // The docked window already plays this channel: grow it back rather than
+  // restart the stream.
+  if (isDocked() && playing && playing.id === ch.id) {
+    expandPlayer({ push });
+    return;
+  }
   lastFocus = document.activeElement;
+  undock();
   playing = ch;
   player.setAttribute("open", "");
   document.body.style.overflow = "hidden";
@@ -1214,9 +1223,58 @@ function openPlayer(ch, { push = true } = {}) {
   document.getElementById("p-close").focus();
 }
 
-function closePlayer({ push = true } = {}) {
+/* ---- picture in picture ------------------------------------------------
+   Closing a TV channel does not stop it: the overlay shrinks into a window in
+   a corner of the page, and the grid stays usable underneath. It is the same
+   element, restyled - moving the video or iframe in the DOM would reload an
+   embedded page and could interrupt the stream. Radio already has its bar,
+   and a channel with nothing to show has nothing worth keeping on screen. */
+const DOCK_CORNERS = ["br", "bl", "tr", "tl"];
+const isDocked = () => player.hasAttribute("docked");
+const canDock = () => Boolean(playing && !playing.audio && !playing.unavailable);
+
+function undock() {
+  player.removeAttribute("docked");
+  player.setAttribute("aria-modal", "true");
+}
+
+function dockPlayer({ push = true } = {}) {
+  player.removeAttribute("open");
+  player.setAttribute("docked", "");
+  player.setAttribute("aria-modal", "false");
+  player.dataset.corner = DOCK_CORNERS.includes(store.get("greektv.dock")) ? store.get("greektv.dock") : "br";
+  document.body.style.overflow = "";
+  document.getElementById("dock-name").textContent = playing.name;
+  document.title = BASE_TITLE;
+  if (push && channelFromUrl()) history.pushState({}, "", "/");
+  if (lastFocus && lastFocus.isConnected) lastFocus.focus();
+}
+
+function expandPlayer({ push = true } = {}) {
+  lastFocus = document.activeElement;
+  undock();
+  player.setAttribute("open", "");
+  document.body.style.overflow = "hidden";
+  buildSwitcher();
+  document.title = `${playing.name} · Greek TV & Radio`;
+  if (push && location.pathname !== channelPath(playing)) {
+    history.pushState({ ch: playing.id }, "", channelPath(playing));
+  }
+  document.getElementById("p-close").focus();
+}
+
+/**
+ * @param {{push?: boolean, stop?: boolean}} opts stop=true ends playback even
+ *        for a TV channel that would otherwise carry on docked.
+ */
+function closePlayer({ push = true, stop = false } = {}) {
+  if (!stop && player.hasAttribute("open") && canDock()) {
+    dockPlayer({ push });
+    return;
+  }
   cancelRetry();
   teardown();
+  undock();
   player.removeAttribute("open");
   document.body.style.overflow = "";
   playing = null;
@@ -1241,7 +1299,50 @@ window.addEventListener("popstate", () => {
   else if (!playing || playing.id !== ch.id) loadChannel(ch, { push: false });
 });
 
-document.getElementById("p-close").addEventListener("click", closePlayer);
+document.getElementById("p-close").addEventListener("click", () => closePlayer());
+document.getElementById("p-dock").addEventListener("click", () => closePlayer());
+document.getElementById("dock-expand").addEventListener("click", () => expandPlayer());
+document.getElementById("dock-stop").addEventListener("click", () => closePlayer({ stop: true }));
+
+// The docked window can be dragged to any corner; it snaps to the nearest one
+// on release and remembers it for next time.
+{
+  const bar = document.getElementById("dock-bar");
+  let drag = null;
+  bar.addEventListener("pointerdown", (ev) => {
+    if (!isDocked() || ev.button !== 0 || ev.target.closest("button")) return;
+    drag = { x: ev.clientX, y: ev.clientY, moved: false };
+    bar.setPointerCapture(ev.pointerId);
+  });
+  bar.addEventListener("pointermove", (ev) => {
+    if (!drag) return;
+    const dx = ev.clientX - drag.x;
+    const dy = ev.clientY - drag.y;
+    if (!drag.moved && Math.hypot(dx, dy) < 4) return;
+    drag.moved = true;
+    player.classList.add("dragging");
+    player.style.transform = `translate(${dx}px, ${dy}px)`;
+  });
+  const drop = () => {
+    if (!drag) return;
+    const moved = drag.moved;
+    drag = null;
+    player.classList.remove("dragging");
+    if (!moved) return;
+    const box = player.getBoundingClientRect();
+    const cx = box.left + box.width / 2;
+    const cy = box.top + box.height / 2;
+    const corner = (cy < innerHeight / 2 ? "t" : "b") + (cx < innerWidth / 2 ? "l" : "r");
+    player.style.transform = "";
+    player.dataset.corner = corner;
+    store.set("greektv.dock", corner);
+  };
+  bar.addEventListener("pointerup", drop);
+  bar.addEventListener("pointercancel", drop);
+  bar.addEventListener("dblclick", (ev) => {
+    if (isDocked() && !ev.target.closest("button")) expandPlayer();
+  });
+}
 document.getElementById("p-prev").addEventListener("click", () => stepChannel(-1));
 document.getElementById("p-next-ch").addEventListener("click", () => stepChannel(1));
 document.getElementById("p-fav").addEventListener("click", () => {
@@ -1291,7 +1392,7 @@ document.getElementById("p-copy").addEventListener("click", async () => {
 });
 
 player.addEventListener("click", (ev) => {
-  if (ev.target === player) closePlayer();
+  if (ev.target === player && player.hasAttribute("open")) closePlayer();
 });
 // Native playback - radio, and HLS in Safari - never reaches the hls.js
 // MANIFEST_PARSED handler, so this is where those streams drop the spinner.
@@ -1445,7 +1546,7 @@ function initPwa() {
       // Don't yank a running stream out from under the viewer; assets are
       // network-first now, so the next ordinary load picks the new build up
       // anyway. This only makes the current tab catch up sooner.
-      if (radioCh || player.hasAttribute("open")) return;
+      if (radioCh || player.hasAttribute("open") || isDocked()) return;
       reloading = true;
       location.reload();
     });

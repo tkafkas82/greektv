@@ -645,3 +645,45 @@ body.with-bar{padding-bottom:calc(64px + env(safe-area-inset-bottom, 0px))}
   .player-head .who{order:-1; flex:1 1 100%; margin-inline-end:0}
   .switcher{max-height:150px}
 }
+
+/* ---------------- picture in picture (docked player) ----------------
+   The same overlay, shrunk into a corner: no scrim, no switcher or guide, just
+   the stage under a slim bar. Placed last so it wins over the breakpoints. */
+.dock-bar{display:none}
+.player[docked]{
+  display:block; inset:auto; z-index:55;
+  width:min(380px, calc(100vw - 32px)); padding:0; overflow:visible;
+  background:none; backdrop-filter:none; -webkit-backdrop-filter:none;
+}
+.player[docked].dragging{user-select:none}
+.player[docked][data-corner="br"]{right:16px; bottom:max(16px, env(safe-area-inset-bottom))}
+.player[docked][data-corner="bl"]{left:16px; bottom:max(16px, env(safe-area-inset-bottom))}
+.player[docked][data-corner="tr"]{right:16px; top:max(76px, env(safe-area-inset-top))}
+.player[docked][data-corner="tl"]{left:16px; top:max(76px, env(safe-area-inset-top))}
+.player[docked] .player-box{width:100%; box-shadow:0 12px 34px rgba(4,7,12,.5)}
+.player[docked] .player-head,
+.player[docked] .switcher,
+.player[docked] .player-foot{display:none}
+.player[docked] .player-body{padding:0}
+.player[docked] .stage{max-height:none; aspect-ratio:16/9}
+.player[docked] .stage .note b{font-size:13px}
+.player[docked] .stage .note span{font-size:12px}
+.player[docked] .dock-bar{
+  display:flex; align-items:center; gap:6px; padding:5px 6px 5px 11px;
+  border-bottom:1px solid var(--line-2); border-top:3px solid hsl(var(--h) var(--dot-s) var(--dot-l));
+  cursor:grab; touch-action:none;
+}
+.player[docked].dragging .dock-bar{cursor:grabbing}
+.dock-name{
+  flex:1; min-width:0; font-family:var(--disp); font-size:13px; font-weight:700;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.dock-bar .icon-btn{width:28px; height:28px}
+.dock-bar .icon-btn svg{width:13px; height:13px}
+/* Keep the radio bar and a docked window from overlapping. */
+body.with-bar .player[docked][data-corner^="b"]{bottom:calc(80px + env(safe-area-inset-bottom, 0px))}
+@media (max-width: 520px){
+  .player[docked]{width:min(260px, calc(100vw - 24px))}
+  .player[docked][data-corner$="r"]{right:12px}
+  .player[docked][data-corner$="l"]{left:12px}
+}
