@@ -159,6 +159,12 @@
          overlay into a corner window that keeps playing while the grid is used. -->
     <div class="dock-bar" id="dock-bar">
       <span class="dock-name" id="dock-name"></span>
+      <button class="icon-btn" id="dock-prev" type="button" aria-label="Προηγούμενο κανάλι" title="Προηγούμενο ([)">
+        <svg aria-hidden="true"><use href="#i-prev"/></svg>
+      </button>
+      <button class="icon-btn" id="dock-next" type="button" aria-label="Επόμενο κανάλι" title="Επόμενο (])">
+        <svg aria-hidden="true"><use href="#i-next"/></svg>
+      </button>
       <button class="icon-btn" id="dock-expand" type="button" aria-label="Μεγέθυνση παίκτη" title="Μεγέθυνση">
         <svg aria-hidden="true"><use href="#i-expand"/></svg>
       </button>
@@ -225,6 +231,23 @@
           <button class="rs-save" id="rs-save" type="button" hidden></button>
         </div>
 
+        <!-- Zapping over the picture itself: edge arrows that show while the
+             pointer is on the stage, a fullscreen that keeps them (the native
+             one fullscreens the bare video), and a banner naming the channel. -->
+        <button class="zap-edge prev" id="s-prev" type="button" aria-label="Προηγούμενο κανάλι" title="Προηγούμενο (←)">
+          <svg aria-hidden="true"><use href="#i-prev"/></svg>
+        </button>
+        <button class="zap-edge next" id="s-next" type="button" aria-label="Επόμενο κανάλι" title="Επόμενο (→)">
+          <svg aria-hidden="true"><use href="#i-next"/></svg>
+        </button>
+        <button class="stage-fs" id="s-fs" type="button" aria-label="Πλήρης οθόνη" title="Πλήρης οθόνη (F)">
+          <svg aria-hidden="true"><use href="#i-expand"/></svg>
+        </button>
+        <div class="osd" id="p-osd" aria-hidden="true">
+          <span class="osd-num" id="osd-num"></span>
+          <span class="osd-txt"><b id="osd-name"></b><span id="osd-now"></span></span>
+        </div>
+
         <div class="note" id="p-note">
           <div>
             <div class="spin" id="p-spin" aria-hidden="true"></div>
@@ -251,6 +274,11 @@
         <span class="k">Μετά</span>
         <span class="v" id="p-next"></span>
       </div>
+      <p class="keys-hint">
+        <kbd>←</kbd><kbd>→</kbd> κανάλι · <kbd>0</kbd>–<kbd>9</kbd> αριθμός καναλιού ·
+        <kbd>M</kbd> σίγαση · <kbd>F</kbd> πλήρης οθόνη · <kbd>P</kbd> εικόνα σε εικόνα ·
+        <kbd>[</kbd><kbd>]</kbd> κανάλι και στη γωνία
+      </p>
       <p class="embed-note" id="p-embed-note" hidden>
         Αυτό το κανάλι δεν έχει ανοιχτή ροή, γι' αυτό φορτώνεται η σελίδα του στο
         greektv.live μέσα στη σελίδα. Πατήστε <b>Δείτε Τώρα</b> εκεί για να ξεκινήσει.

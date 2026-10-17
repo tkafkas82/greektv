@@ -444,6 +444,7 @@ async function loadGuide() {
 const player = document.getElementById("player");
 const video = document.getElementById("p-video");
 const frame = document.getElementById("p-frame");
+const stage = document.querySelector(".stage");
 const note = document.getElementById("p-note");
 const noteTitle = document.getElementById("p-note-title");
 const noteBody = document.getElementById("p-note-body");
@@ -534,6 +535,7 @@ function teardown() {
   // intact keeps playing audio behind the next channel.
   if (frame.getAttribute("src")) frame.removeAttribute("src");
   frame.hidden = true;
+  stage.classList.remove("framed");
   video.hidden = false;
   embedNote.hidden = true;
   // Deliberately does not stop `radio`: teardown clears the visual stage, and
@@ -1009,9 +1011,21 @@ function markCurrent() {
     btn.setAttribute("aria-current", on ? "true" : "false");
     if (on) btn.scrollIntoView({ block: "nearest" });
   }
+  paintNav();
+}
+
+/** Every prev/next pair - head, stage edges, docked bar - follows the reel. */
+function paintNav() {
   const at = playing ? reel.findIndex((c) => c.id === playing.id) : -1;
-  document.getElementById("p-prev").disabled = at <= 0;
-  document.getElementById("p-next-ch").disabled = at < 0 || at >= reel.length - 1;
+  const noPrev = at <= 0;
+  const noNext = at < 0 || at >= reel.length - 1;
+  document.getElementById("p-prev").disabled = noPrev;
+  document.getElementById("p-next-ch").disabled = noNext;
+  document.getElementById("dock-prev").disabled = noPrev;
+  document.getElementById("dock-next").disabled = noNext;
+  // Over the picture a dead arrow is just clutter, so it goes rather than greys.
+  document.getElementById("s-prev").hidden = noPrev;
+  document.getElementById("s-next").hidden = noNext;
 }
 
 const RESOLVE_TIMEOUT_MS = 6000;
@@ -1105,11 +1119,17 @@ async function loadChannel(ch, { push = true } = {}) {
   document.getElementById("p-dock").hidden = Boolean(ch.audio || ch.unavailable);
   document.getElementById("dock-name").textContent = ch.name;
 
+  showOsd(ch);
+  paintMediaSession(ch);
+
   // Reflect the channel in the URL so it survives a reload, can be shared, and
-  // gives the browser's Back button something to step through.
-  document.title = `${ch.name} · Greek TV & Radio`;
-  if (push && location.pathname !== channelPath(ch)) {
-    history.pushState({ ch: ch.id }, "", channelPath(ch));
+  // gives the browser's Back button something to step through. Not while
+  // docked: the page underneath is the grid, and its URL says so.
+  if (!isDocked()) {
+    document.title = `${ch.name} · Greek TV & Radio`;
+    if (push && location.pathname !== channelPath(ch)) {
+      history.pushState({ ch: ch.id }, "", channelPath(ch));
+    }
   }
 
   if (playsDirect(ch)) {
@@ -1160,6 +1180,7 @@ function showEmbed(ch, reason) {
   syncStage();
   video.hidden = true;
   frame.hidden = false;
+  stage.classList.add("framed");
   embedNote.hidden = false;
 
   if (reason === null) {
@@ -1187,12 +1208,182 @@ function showEmbed(ch, reason) {
   frame.src = ch.watchUrl;
 }
 
+/**
+ * Step along the reel. Small windows skip what they cannot show: the docked
+ * one has no room for an "unavailable" card, and the browser's own
+ * picture-in-picture window holds only the video element, so an embedded
+ * page would leave it black.
+ */
 function stepChannel(delta) {
-  if (!playing || !reel.length) return;
+  if (!playing) return;
+  // The grid may have been filtered since the docked window was opened.
+  if (isDocked()) {
+    const fresh = reelFor(playing);
+    if (fresh.some((c) => c.id === playing.id)) reel = fresh;
+  }
   const at = reel.findIndex((c) => c.id === playing.id);
   if (at < 0) return;
-  const next = reel[at + delta];
-  if (next) loadChannel(next);
+  const skip = (c) => (nativePip() && !playsDirect(c)) || (isDocked() && c.unavailable);
+  for (let i = at + delta; i >= 0 && i < reel.length; i += delta) {
+    if (!skip(reel[i])) {
+      zapTo(reel[i]);
+      return;
+    }
+  }
+}
+
+const nativePip = () => document.pictureInPictureElement === video;
+
+/** Switch channel from wherever the player is: full, docked, or closed. */
+function zapTo(ch) {
+  if (player.hasAttribute("open")) loadChannel(ch);
+  // Radio and unavailable channels have nothing for the corner window to show.
+  else if (isDocked() && canDockChannel(ch)) loadChannel(ch, { push: false });
+  else openPlayer(ch);
+}
+
+/* ---- on-screen banner ---- */
+const osd = document.getElementById("p-osd");
+let osdTimer;
+
+function showOsd(ch, { hold = 2600 } = {}) {
+  const entry = guide.get(ch.id);
+  document.getElementById("osd-num").textContent = String(ch.id).padStart(3, "0");
+  document.getElementById("osd-name").textContent = ch.name;
+  document.getElementById("osd-now").textContent = ch.audio
+    ? songText(ch)
+    : entry && entry.now
+      ? entry.now.title
+      : CATEGORIES[ch.cat].label;
+  flashOsd(hold);
+}
+
+function flashOsd(hold) {
+  osd.classList.add("show");
+  clearTimeout(osdTimer);
+  osdTimer = setTimeout(() => osd.classList.remove("show"), hold);
+}
+
+/* ---- media session ----
+   Gives the browser's own picture-in-picture window, the OS media overlay and
+   the keyboard's hardware media keys a previous/next track that zaps. */
+function paintMediaSession(ch) {
+  if (!("mediaSession" in navigator)) return;
+  const entry = guide.get(ch.id);
+  try {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: ch.name,
+      artist: ch.audio ? songText(ch) : entry && entry.now ? entry.now.title : CATEGORIES[ch.cat].label,
+      album: "Greek TV & Radio",
+    });
+  } catch {
+    // MediaMetadata is missing in a few embedded webviews; the actions still work.
+  }
+}
+
+if ("mediaSession" in navigator) {
+  for (const [action, delta] of [["previoustrack", -1], ["nexttrack", 1]]) {
+    try {
+      navigator.mediaSession.setActionHandler(action, () => stepChannel(delta));
+    } catch {
+      // An action this browser does not know - nothing to wire.
+    }
+  }
+}
+
+/* ---- stage: wake-on-move, fullscreen ---- */
+let wakeTimer;
+
+function wakeStage() {
+  stage.classList.add("awake");
+  clearTimeout(wakeTimer);
+  wakeTimer = setTimeout(() => {
+    // Keep the controls up while the pointer rests on one of them.
+    if (stage.querySelector(".zap-edge:hover, .stage-fs:hover")) wakeStage();
+    else stage.classList.remove("awake");
+  }, 2400);
+}
+stage.addEventListener("pointermove", wakeStage);
+stage.addEventListener("pointerdown", wakeStage);
+stage.addEventListener("pointerleave", (ev) => {
+  if (ev.pointerType === "mouse") {
+    clearTimeout(wakeTimer);
+    stage.classList.remove("awake");
+  }
+});
+
+const fsSupported = Boolean(document.fullscreenEnabled && stage.requestFullscreen);
+// The native fullscreen button takes the bare <video>, leaving the arrows and
+// banner behind; where the stage itself can go fullscreen, use that instead.
+if (fsSupported) video.setAttribute("controlslist", "nofullscreen");
+else document.getElementById("s-fs").hidden = true;
+
+function toggleFullscreen() {
+  if (document.fullscreenElement) {
+    document.exitFullscreen().catch(() => {});
+  } else if (fsSupported) {
+    stage.requestFullscreen().catch(() => {});
+  } else if (video.webkitEnterFullscreen && !video.hidden) {
+    // iOS: only the video element can go fullscreen.
+    video.webkitEnterFullscreen();
+  }
+}
+document.getElementById("s-fs").addEventListener("click", toggleFullscreen);
+video.addEventListener("dblclick", (ev) => {
+  ev.preventDefault();
+  if (isDocked()) expandPlayer();
+  else toggleFullscreen();
+});
+document.addEventListener("fullscreenchange", () => {
+  const on = document.fullscreenElement === stage;
+  const btn = document.getElementById("s-fs");
+  btn.setAttribute("aria-label", on ? "Έξοδος από πλήρη οθόνη" : "Πλήρης οθόνη");
+  btn.title = on ? "Έξοδος από πλήρη οθόνη (F)" : "Πλήρης οθόνη (F)";
+});
+document.getElementById("s-prev").addEventListener("click", () => stepChannel(-1));
+document.getElementById("s-next").addEventListener("click", () => stepChannel(1));
+
+function toggleMute() {
+  const el = playing && playing.audio ? radio : video;
+  el.muted = !el.muted;
+  if (!playing) return;
+  document.getElementById("osd-num").textContent = "";
+  document.getElementById("osd-name").textContent = el.muted ? "Σίγαση" : "Ήχος";
+  document.getElementById("osd-now").textContent = playing.name;
+  flashOsd(1400);
+}
+
+/* ---- typing a channel number ----
+   As on a remote: digits collect in the banner and the channel tunes once
+   three are in, or after a short pause. */
+let dialed = "";
+let dialTimer;
+
+function dialDigit(d) {
+  dialed = (dialed + d).slice(-3);
+  document.getElementById("osd-num").textContent = dialed.padEnd(3, "_");
+  document.getElementById("osd-name").textContent = "Κανάλι";
+  document.getElementById("osd-now").textContent = "";
+  flashOsd(1800);
+  clearTimeout(dialTimer);
+  if (dialed.length === 3) tuneDialed();
+  else dialTimer = setTimeout(tuneDialed, 1300);
+}
+
+function tuneDialed() {
+  clearTimeout(dialTimer);
+  const id = Number(dialed);
+  dialed = "";
+  const ch = CHANNELS.find((c) => c.id === id);
+  if (!ch) {
+    document.getElementById("osd-name").textContent = "Δεν υπάρχει κανάλι";
+    document.getElementById("osd-now").textContent = String(id).padStart(3, "0");
+    document.getElementById("osd-num").textContent = "";
+    flashOsd(1600);
+    return;
+  }
+  if (playing && playing.id === ch.id) showOsd(ch);
+  else zapTo(ch);
 }
 
 function paintPlayerFav() {
@@ -1231,7 +1422,8 @@ function openPlayer(ch, { push = true } = {}) {
    and a channel with nothing to show has nothing worth keeping on screen. */
 const DOCK_CORNERS = ["br", "bl", "tr", "tl"];
 const isDocked = () => player.hasAttribute("docked");
-const canDock = () => Boolean(playing && !playing.audio && !playing.unavailable);
+const canDockChannel = (ch) => Boolean(ch && !ch.audio && !ch.unavailable);
+const canDock = () => canDockChannel(playing);
 
 function undock() {
   player.removeAttribute("docked");
@@ -1239,6 +1431,7 @@ function undock() {
 }
 
 function dockPlayer({ push = true } = {}) {
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
   player.removeAttribute("open");
   player.setAttribute("docked", "");
   player.setAttribute("aria-modal", "false");
@@ -1273,6 +1466,7 @@ function closePlayer({ push = true, stop = false } = {}) {
     return;
   }
   cancelRetry();
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
   teardown();
   undock();
   player.removeAttribute("open");
@@ -1303,6 +1497,8 @@ document.getElementById("p-close").addEventListener("click", () => closePlayer()
 document.getElementById("p-dock").addEventListener("click", () => closePlayer());
 document.getElementById("dock-expand").addEventListener("click", () => expandPlayer());
 document.getElementById("dock-stop").addEventListener("click", () => closePlayer({ stop: true }));
+document.getElementById("dock-prev").addEventListener("click", () => stepChannel(-1));
+document.getElementById("dock-next").addEventListener("click", () => stepChannel(1));
 
 // The docked window can be dragged to any corner; it snaps to the nearest one
 // on release and remembers it for next time.
@@ -1432,9 +1628,64 @@ input.addEventListener("keydown", (ev) => {
   }
 });
 
+/**
+ * Keys that work whenever a channel is on screen, full or docked. Returns true
+ * when the key was taken. Text fields and modifier chords are left alone, so
+ * typing a search while the corner window plays still types.
+ */
+function playerKey(ev) {
+  if (ev.ctrlKey || ev.metaKey || ev.altKey) return false;
+  if (ev.target.closest && ev.target.closest("input, textarea, select, [contenteditable]")) return false;
+  const docked = isDocked();
+  switch (ev.key) {
+    // While docked, Page Up/Down still scroll the grid underneath.
+    case "PageUp":
+      if (docked) return false;
+    // falls through
+    case "[":
+      stepChannel(-1);
+      return true;
+    case "PageDown":
+      if (docked) return false;
+    // falls through
+    case "]":
+      stepChannel(1);
+      return true;
+    case "m":
+    case "M":
+      toggleMute();
+      return true;
+    case "f":
+    case "F":
+      if (docked) expandPlayer();
+      else toggleFullscreen();
+      return true;
+    case "p":
+    case "P":
+      if (docked) expandPlayer();
+      else if (canDock()) closePlayer();
+      return true;
+    case "i":
+    case "I":
+      showOsd(playing, { hold: 4000 });
+      return true;
+  }
+  if (/^[0-9]$/.test(ev.key)) {
+    dialDigit(ev.key);
+    return true;
+  }
+  return false;
+}
+
 document.addEventListener("keydown", (ev) => {
+  if ((player.hasAttribute("open") || isDocked()) && playing && playerKey(ev)) {
+    ev.preventDefault();
+    return;
+  }
   if (player.hasAttribute("open")) {
     if (ev.key === "Escape") {
+      // The browser leaves fullscreen on its own Escape; don't close too.
+      if (document.fullscreenElement) return;
       closePlayer();
       return;
     }

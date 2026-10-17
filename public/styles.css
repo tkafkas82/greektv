@@ -436,6 +436,60 @@ button{font:inherit; color:inherit}
 }
 @keyframes spin{to{transform:rotate(360deg)}}
 
+/* ---- controls over the picture ----
+   Hidden until the pointer moves on the stage (.awake, set from app.js) and
+   gone again once it rests. An embedded page swallows pointer events, so over
+   one (.framed) plain :hover stands in. Kept clear of the native control bar
+   at the bottom of the video. */
+.zap-edge, .stage-fs{
+  position:absolute; z-index:3; display:grid; place-items:center;
+  border:0; border-radius:50%; cursor:pointer; color:#fff;
+  background:rgba(5,8,13,.58); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);
+  opacity:0; pointer-events:none; transition:opacity .18s, background .15s;
+}
+.zap-edge{top:50%; translate:0 -50%; width:46px; height:46px}
+.zap-edge.prev{left:12px}
+.zap-edge.next{right:12px}
+.zap-edge svg{width:20px; height:20px; fill:currentColor}
+.stage-fs{top:10px; right:10px; width:34px; height:34px; border-radius:7px}
+.stage-fs svg{width:15px; height:15px; fill:currentColor}
+.zap-edge:hover, .stage-fs:hover{background:rgba(5,8,13,.82)}
+.zap-edge[hidden], .stage-fs[hidden]{display:none}
+.stage.awake .zap-edge, .stage.awake .stage-fs,
+.stage.framed:hover .zap-edge, .stage.framed:hover .stage-fs{opacity:1; pointer-events:auto}
+.zap-edge:focus-visible, .stage-fs:focus-visible{opacity:1; pointer-events:auto; outline:2px solid #fff; outline-offset:2px}
+
+/* The channel banner, as a TV shows it after every zap. */
+.osd{
+  position:absolute; z-index:2; top:12px; left:12px; max-width:calc(100% - 70px);
+  display:flex; align-items:center; gap:10px; padding:8px 12px 8px 8px;
+  background:rgba(5,8,13,.72); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);
+  border-inline-start:3px solid hsl(var(--h) var(--dot-s) var(--dot-l));
+  border-radius:6px; color:#fff; pointer-events:none;
+  opacity:0; translate:0 -6px; transition:opacity .2s, translate .2s;
+}
+.osd.show{opacity:1; translate:0 0}
+.osd-num{font-family:var(--mono); font-size:18px; font-weight:600; letter-spacing:.02em; color:#C9D3E2}
+.osd-num:empty{display:none}
+.osd-txt{min-width:0; display:flex; flex-direction:column}
+.osd-txt b{font-family:var(--disp); font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.osd-txt span{font-size:12px; color:#C9D3E2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.osd-txt span:empty{display:none}
+
+/* Fullscreen takes the stage, not the bare video, so the overlay comes along. */
+.stage:fullscreen{max-height:none; aspect-ratio:auto; width:100vw; height:100vh}
+.stage:fullscreen:not(.awake):not(.framed){cursor:none}
+.stage:fullscreen .zap-edge{width:58px; height:58px}
+.stage:fullscreen .osd{top:24px; left:24px}
+
+.keys-hint{margin:2px 0 0; font-size:11px; color:var(--muted); line-height:1.7}
+.keys-hint kbd{
+  font-family:var(--mono); font-size:10px; color:var(--ink-2);
+  border:1px solid var(--line); border-radius:3px; padding:0 4px; margin-inline-end:2px;
+  background:var(--surface-2);
+}
+@media (hover: none){ .keys-hint{display:none} }
+
 .player-foot{padding:11px 13px; display:flex; flex-direction:column; gap:6px; font-size:12.5px}
 .player-foot .row{display:flex; gap:8px; align-items:baseline; min-width:0}
 .player-foot .k{
@@ -668,6 +722,15 @@ body.with-bar{padding-bottom:calc(64px + env(safe-area-inset-bottom, 0px))}
 .player[docked] .stage{max-height:none; aspect-ratio:16/9}
 .player[docked] .stage .note b{font-size:13px}
 .player[docked] .stage .note span{font-size:12px}
+.player[docked] .zap-edge{width:34px; height:34px}
+.player[docked] .zap-edge.prev{left:6px}
+.player[docked] .zap-edge.next{right:6px}
+.player[docked] .zap-edge svg{width:15px; height:15px}
+.player[docked] .stage-fs{display:none}
+.player[docked] .osd{top:6px; left:6px; padding:5px 9px 5px 6px; gap:7px}
+.player[docked] .osd-num{font-size:14px}
+.player[docked] .osd-txt b{font-size:12.5px}
+.player[docked] .osd-txt span{display:none}
 .player[docked] .dock-bar{
   display:flex; align-items:center; gap:6px; padding:5px 6px 5px 11px;
   border-bottom:1px solid var(--line-2); border-top:3px solid hsl(var(--h) var(--dot-s) var(--dot-l));

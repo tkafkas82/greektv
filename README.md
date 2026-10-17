@@ -54,6 +54,17 @@ player. `←`/`→` zap through it, the `‹ ›` buttons do the same, and the o
 channel is reflected in the URL as `#ch=<id>` so a reload or a shared link comes
 back to it. The only thing that navigates away is the small ↗ on each card.
 
+On the picture itself, moving the pointer brings up `‹ ›` zap arrows and a
+fullscreen button (fullscreen takes the whole stage, so the arrows come along),
+and every switch shows a TV-style banner with the channel number, name and
+current programme. Keys while a channel is on screen: `←`/`→` (or `PgUp`/`PgDn`,
+`[`/`]`) zap, digits dial a channel number like a remote, `M` mutes, `F` goes
+fullscreen, `P` docks or expands, `I` shows the banner again. The docked corner
+window has its own `‹ ›` and answers `[`/`]`, digits, `M`, `P` while the grid is
+browsed. The browser's own picture-in-picture window and hardware media keys
+get previous/next through the Media Session API; in that window, channels with
+no open stream are skipped, since it can only show the video.
+
 Channels split into two kinds, marked `LIVE` and `WEB` on every card:
 
 - **`LIVE` (71)** — an open stream, played directly in the overlay.
