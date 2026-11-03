@@ -1380,6 +1380,18 @@ function toggleMute() {
   flashOsd(1400);
 }
 
+function togglePause() {
+  const el = playing && playing.audio ? radio : video;
+  // An embedded page or a channel that hasn't loaded has nothing to pause.
+  if (!playing || (!playing.audio && (video.hidden || !video.currentSrc))) return;
+  if (el.paused) el.play().catch(() => {});
+  else el.pause();
+  document.getElementById("osd-num").textContent = "";
+  document.getElementById("osd-name").textContent = el.paused ? "Παύση" : "Αναπαραγωγή";
+  document.getElementById("osd-now").textContent = playing.name;
+  flashOsd(1400);
+}
+
 /* ---- typing a channel number ----
    As on a remote: digits collect in the banner and the channel tunes once
    three are in, or after a short pause. */
@@ -1666,6 +1678,13 @@ function playerKey(ev) {
   if (ev.target.closest && ev.target.closest("input, textarea, select, [contenteditable]")) return false;
   const docked = isDocked();
   switch (ev.key) {
+    // Space pauses. Taken even on a focused button (the player focuses X on
+    // open, and Space would otherwise click it), but not on the video, whose
+    // own controls already toggle, and not while docked, where it scrolls.
+    case " ":
+      if (docked || ev.target === video) return false;
+      togglePause();
+      return true;
     // While docked, Page Up/Down still scroll the grid underneath.
     case "PageUp":
       if (docked) return false;
