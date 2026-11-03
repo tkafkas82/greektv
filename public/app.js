@@ -1355,7 +1355,6 @@ function toggleFullscreen() {
   }
 }
 document.getElementById("s-fs").addEventListener("click", toggleFullscreen);
-document.getElementById("s-stop").addEventListener("click", () => stopPlayback());
 document.getElementById("s-close").addEventListener("click", () => closePlayer({ stop: true }));
 video.addEventListener("dblclick", (ev) => {
   ev.preventDefault();
@@ -1485,23 +1484,6 @@ function expandPlayer({ push = true } = {}) {
 }
 
 /**
- * Stop the stream but keep the player open on the channel, with a way to start
- * it again. Zapping from here plays the next channel as usual.
- */
-function stopPlayback() {
-  const ch = playing;
-  if (!ch) return;
-  cancelRetry();
-  if (ch.audio) stopRadio();
-  teardown();
-  syncStage();
-  showNote("Διακόπηκε", `<button type="button" class="retry">▶ Αναπαραγωγή</button>`);
-  noteBody.querySelector(".retry").addEventListener("click", () => {
-    if (playing === ch) loadChannel(ch, { push: false });
-  });
-}
-
-/**
  * @param {{push?: boolean, stop?: boolean}} opts stop=true ends playback even
  *        for a TV channel that would otherwise carry on docked.
  */
@@ -1540,7 +1522,6 @@ window.addEventListener("popstate", () => {
 
 // X and Esc stop the channel; the PiP button (and P) keep it going in a corner.
 document.getElementById("p-close").addEventListener("click", () => closePlayer({ stop: true }));
-document.getElementById("p-stop").addEventListener("click", () => stopPlayback());
 document.getElementById("p-dock").addEventListener("click", () => closePlayer());
 document.getElementById("dock-expand").addEventListener("click", () => expandPlayer());
 document.getElementById("dock-stop").addEventListener("click", () => closePlayer({ stop: true }));
@@ -1715,11 +1696,6 @@ function playerKey(ev) {
     case "i":
     case "I":
       showOsd(playing, { hold: 4000 });
-      return true;
-    case "s":
-    case "S":
-      if (docked) closePlayer({ stop: true });
-      else stopPlayback();
       return true;
   }
   if (/^[0-9]$/.test(ev.key)) {
