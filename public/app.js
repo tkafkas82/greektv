@@ -1207,7 +1207,9 @@ function showEmbed(ch, reason) {
   stage.classList.add("framed");
   embedNote.hidden = false;
 
-  if (reason === null) {
+  if (reason === null && ch.ownPlayer) {
+    embedNote.textContent = `Το ${ch.name} παίζει από τον επίσημο player του σταθμού.`;
+  } else if (reason === null) {
     embedNote.innerHTML = DEFAULT_EMBED_NOTE;
   } else {
     embedNote.textContent = "";
@@ -1229,7 +1231,7 @@ function showEmbed(ch, reason) {
     embedNote.append(retry);
   }
 
-  frame.src = ch.watchUrl;
+  frame.src = ch.embedUrl;
 }
 
 /**

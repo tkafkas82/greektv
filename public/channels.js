@@ -19,11 +19,11 @@
 // the server runs from a Greek IP: start.bat at home, or a VM in Greece.
 // From Vercel's Frankfurt region it still gets a geo 403. See README.md.
 //
-// Mega is marked UNAVAILABLE: it has no open stream and its embed fallback is
-// dead (checked 2026-10-05 from a Greek IP) - Mega's Vindral player is refused
-// with "Domain not allowed" on greektv.live. It would still accept our origin,
-// but that refusal is the broadcaster blocking aggregators on purpose, so we
-// don't route around it.
+// Mega has no open stream, and its greektv.live page is dead: Mega's Vindral
+// player answers "Domain not allowed" to that one domain. It is a denylist,
+// not an allowlist - other origins are served - so Mega embeds the same
+// official Vindral player megatv.com/live itself loads (PLAYER_EMBED below),
+// low-latency WebRTC straight from the broadcaster's CDN.
 //
 // Row shape: [name, id, slug, categoryIndex, streamUrl|null, tvgId|null, siteUrl?]
 //
@@ -370,7 +370,15 @@ const ROWS = [
 // unavailable: the card stays in the grid but says so, and opening it shows a
 // notice instead of a dead page. With one (Ant1), a failed stream ends on that
 // notice too, rather than falling back to the dead embed.
-const NO_EMBED = new Set(["ant1", "mega"]);
+const NO_EMBED = new Set(["ant1"]);
+
+// The broadcaster's own embeddable player, loaded in place of the greektv.live
+// page. Mega's is the Vindral iframe megatv.com/live builds in live-*.js.
+const PLAYER_EMBED = {
+  mega:
+    "https://player.vindral.com/?core.channelId=alteregomedia_megatv1_ci_6cc490c7-e5c6-486b-acf0-9bb9c20fa670" +
+    "&core.minBufferTime=2000&player.aspectRatio=16:9",
+};
 
 export const CHANNELS = ROWS.map(([name, id, slug, cat, stream, tvg, site]) => ({
   id,
@@ -384,6 +392,10 @@ export const CHANNELS = ROWS.map(([name, id, slug, cat, stream, tvg, site]) => (
   /** True for an Icecast/audio stream rather than an HLS manifest. */
   audio: AUDIO.has(CATEGORIES[cat].key),
   watchUrl: site || `https://www.greektv.live/tv/channel/${id}/${slug}`,
+  /** What the stage frames when there is no stream: a player, or the page. */
+  embedUrl: PLAYER_EMBED[slug] || site || `https://www.greektv.live/tv/channel/${id}/${slug}`,
+  /** True when embedUrl is the broadcaster's player, so needs no "press play". */
+  ownPlayer: slug in PLAYER_EMBED,
   noEmbed: NO_EMBED.has(slug),
   unavailable: NO_EMBED.has(slug) && !stream,
 }));

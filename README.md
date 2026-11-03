@@ -113,13 +113,25 @@ region. On Vercel the relay gets the geo `403`. When the stream fails, Ant1 show
 a notice with a retry and a link to antenna.gr/live, not its embedded
 greektv.live page, which doesn't play (that page's `Origin` is refused too).
 
-**Mega is marked unavailable (`N/A`)**. It has no open stream, and its embed
-fallback fails too (checked 2026-10-05 from a Greek IP): Mega's Vindral player
-answers `Domain not allowed` for greektv.live. It would accept our origin, but that
-block is the broadcaster shutting out aggregators on purpose, so we don't route
-around it. Its card stays in the grid, greyed out with an `N/A` tag. Opening it
-shows a notice instead of a dead page, and the ↗ link goes to the broadcaster's own
-live page. The list is `NO_EMBED` in `public/channels.js`.
+**Mega plays in its own official player.** It has no open stream, and megatv.com/live
+plays through a [Vindral](https://vindral.com) iframe (low-latency WebRTC), built
+in the site's `live-*.js`. That player sends the embedding page's origin to
+Vindral as `parentOrigin`, and Vindral checks it against a **denylist**, not an
+allowlist:
+
+| `parentOrigin` | `/api/v4/connect` |
+| --- | --- |
+| `https://www.greektv.live` | `403 Domain not allowed` |
+| `http://localhost:3000`, a LAN address, a `*.vercel.app` domain, `megatv.com` | `200` |
+
+So the greektv.live page that used to be Mega's fallback is dead, but the very
+same official player loads fine framed in our page. Mega's card is a `WEB`
+channel whose frame is that player (`PLAYER_EMBED` in `public/channels.js`), not
+a greektv.live page, and it needs no "press play". Vindral's HLS output
+(`/api/hls`, meant for AirPlay) is not enabled for this channel (`404`), so there
+is no stream for the `<video>` element, and the browser's own picture-in-picture skips it like every `WEB` channel. If Vindral
+ever adds our origin to the denylist, Mega goes back to `N/A`: put `mega` in
+`NO_EMBED` and remove its `PLAYER_EMBED` entry.
 
 One channel is added on top of that: **Open Beyond**, which iptv-org does not
 carry. Its broadcaster publishes the current manifest itself, from the JSON the
