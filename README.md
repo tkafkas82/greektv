@@ -161,12 +161,12 @@ greektv.live link rather than spinning forever.
 
 ### Defaults
 
-**Μόνο με αναπαραγωγή is checked on load**, so the grid opens on the channels
-that play in-app rather than on all 272. Untick it to see the whole catalogue.
-The `checked` attribute in `index.html` and `state.onlyPlayable` in `app.js` have
-to agree — they are the same setting written twice.
+**Μόνο με αναπαραγωγή is unchecked on load**, so the grid opens on all 272
+channels. Tick it to keep only the ones that play in-app. `state.onlyPlayable`
+in `app.js` is the setting: the box is set from it on every load (and has
+`autocomplete="off"`), because browsers otherwise restore the last tick on reload.
 
-Deep links ignore the filter: `/c/ant1` still opens Ant1 even though its card is
+Deep links ignore the filter: `/c/<slug>` opens a channel even when its card is
 filtered out of the grid.
 
 ### Radio: 21 stations

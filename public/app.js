@@ -125,7 +125,7 @@ const state = {
   query: "",
   category: null,
   sort: "cat",
-  onlyPlayable: true,
+  onlyPlayable: false,
   onlyGuide: false,
 };
 
@@ -1751,7 +1751,7 @@ for (const btn of document.querySelectorAll(".seg button")) {
   });
 }
 
-// Every load opens on the playable channels. Browsers restore a checkbox's
+// Every load opens on the whole catalogue. Browsers restore a checkbox's
 // last state on reload and Back, which would leave the box disagreeing with
 // the grid, so the boxes follow the state rather than the other way round.
 document.getElementById("only-playable").checked = state.onlyPlayable;
