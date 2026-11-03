@@ -1751,6 +1751,12 @@ for (const btn of document.querySelectorAll(".seg button")) {
   });
 }
 
+// Every load opens on the playable channels. Browsers restore a checkbox's
+// last state on reload and Back, which would leave the box disagreeing with
+// the grid, so the boxes follow the state rather than the other way round.
+document.getElementById("only-playable").checked = state.onlyPlayable;
+document.getElementById("only-guide").checked = state.onlyGuide;
+
 document.getElementById("only-playable").addEventListener("change", (ev) => {
   state.onlyPlayable = ev.target.checked;
   render();

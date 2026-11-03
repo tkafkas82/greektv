@@ -113,12 +113,13 @@
 
     <div class="toggles">
       <label class="check" for="only-playable">
-        <!-- checked by default; keep in step with state.onlyPlayable in app.js -->
-        <input type="checkbox" id="only-playable" checked>
+        <!-- checked by default; app.js sets both boxes from its state on load, and
+             autocomplete="off" stops the browser restoring the last reload's tick -->
+        <input type="checkbox" id="only-playable" checked autocomplete="off">
         <span>Μόνο με αναπαραγωγή</span>
       </label>
       <label class="check" for="only-guide">
-        <input type="checkbox" id="only-guide">
+        <input type="checkbox" id="only-guide" autocomplete="off">
         <span>Μόνο με πρόγραμμα</span>
       </label>
     </div>
