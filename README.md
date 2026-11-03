@@ -84,7 +84,7 @@ embedding the streams. Those streams are therefore not used here at all.
 Instead, streams come from the **openly published
 [iptv-org Greek playlist](https://iptv-org.github.io/iptv/countries/gr.m3u)**.
 Matching its 71 entries against the catalogue by name yields 65 channels with a
-playable HLS URL, minus Ant1 (below) and plus Open Beyond, ERT 1 and ERT 2 Sports, so **67** are marked
+playable HLS URL, plus Open Beyond, ERT 1 and ERT 2 Sports, so **68** are marked
 `LIVE`. The other 184 fall back to the embedded page described above, so they
 still play without leaving the grid.
 
@@ -92,27 +92,34 @@ ERT 1 and ERT 2 Sports are not in iptv-org but come from the same ERT CDN as
 ERT 3 and ERT News (`ert-ucdn.broadpeak-aas.com/bpk-tv/<NAME>/default/index.m3u8`),
 which sends CORS headers, so the browser plays them directly.
 
-**Ant1 is deliberately `null`** although iptv-org lists a URL for it. Two
-separate things block it, and neither is fixable in code:
+**Ant1 plays through the relay, and only from a Greek IP.** Native apps such as
+[GreekTV Lite](https://play.google.com/store/apps/details?id=com.nickstamp.greektvlite)
+play it straight from `mcdn.antennaplus.gr`. Probing that CDN (Google Media CDN)
+from Greece shows how:
 
-- The stream is geo-restricted to Greece. The relay runs in Vercel’s Frankfurt
-  region and gets a `403`; the same URL returns `200` from Greece. Vercel has no
-  Greek region.
-- The browser can’t fetch it directly either — that CDN rejects our `Origin`.
+| Request to `Ant1.m3u8` | Result |
+| --- | --- |
+| no `Origin` header (any native HTTP client) | `200` |
+| `Origin: https://www.antenna.gr` / `antennaplus.gr` / `watch.antennaplus.gr` | `200` |
+| `Origin: http://localhost:3000`, `https://www.ant1.gr`, `null`, … | `403` |
+| any request from outside Greece (e.g. Vercel Frankfurt) | `403` |
 
-Keeping the URL only bought viewers a timeout before the embed loaded, so the
-entry is `null` and Ant1 goes straight to its embedded page. Running the server
-from inside Greece would play it via the relay, but only after restoring the URL:
-the relay only allows hosts that are in the catalogue.
+An app sends no `Origin`, and the phone is in Greece, so it plays. A browser always
+sends its page's `Origin`, which that allowlist refuses. So the host is in
+`RELAY_ONLY_HOSTS` and the player goes straight to `/api/stream`, which fetches
+with Antenna's own referer (`HOST_REFERER` in `api/stream.js`). That works when
+the server runs in Greece: `start.bat` / `npm start` at home, or a VM in a Greek
+region. On Vercel the relay gets the geo `403`. When the stream fails, Ant1 shows
+a notice with a retry and a link to antenna.gr/live, not its embedded
+greektv.live page, which doesn't play (that page's `Origin` is refused too).
 
-**Ant1 and Mega are marked unavailable (`N/A`)**, because their embed fallback
-fails as well (checked 2026-10-05 from a Greek IP). On greektv.live, Ant1 shows
-"Σφάλμα αναπαραγωγής" because its CDN rejects that page's `Origin`. Mega's
-Vindral player answers `Domain not allowed` for greektv.live. It would accept our
-origin, but that block is the broadcaster shutting out aggregators on purpose, so
-we don't route around it. Their cards stay in the grid, greyed out with an `N/A`
-tag. Opening one shows a notice instead of a dead page, and the ↗ link goes to
-the broadcaster's own live page. The list is `UNAVAILABLE` in `public/channels.js`.
+**Mega is marked unavailable (`N/A`)**. It has no open stream, and its embed
+fallback fails too (checked 2026-10-05 from a Greek IP): Mega's Vindral player
+answers `Domain not allowed` for greektv.live. It would accept our origin, but that
+block is the broadcaster shutting out aggregators on purpose, so we don't route
+around it. Its card stays in the grid, greyed out with an `N/A` tag. Opening it
+shows a notice instead of a dead page, and the ↗ link goes to the broadcaster's own
+live page. The list is `NO_EMBED` in `public/channels.js`.
 
 One channel is added on top of that: **Open Beyond**, which iptv-org does not
 carry. Its broadcaster publishes the current manifest itself, from the JSON the
@@ -121,7 +128,7 @@ Because that URL rotates, the catalogue entry is only a fallback and the live on
 is fetched at play time — see [`GET /api/resolve`](#get-apiresolve).
 
 **Public IPTV URLs rot, and they also drop the odd request.** A probe of all
-65 at the time of writing found **13 already gone** — Ant1 on `403` (see below),
+65 at the time of writing found **13 already gone** — Ant1 on `403` (see above),
 both ERT
 Sports feeds timing out, four `404`s, two `500`s, two rejected certificate
 chains and two unreachable hosts. Rather than freeze that verdict into the

@@ -11,18 +11,19 @@
 // the current one. Only 67 of the 251 channels have a stream; the rest are
 // directory-only. See README.md.
 //
-// Ant1 is deliberately null although iptv-org lists a URL for it: that stream is
-// geo-restricted to Greece, so the relay - which runs in Vercel's Frankfurt
-// region - gets a 403, and the browser cannot fetch it directly because the CDN
-// rejects our Origin. Leaving the URL in place only bought a timeout before the
-// embed loaded anyway. See README.md.
+// Ant1's stream is relay-only. Its CDN (Google Media CDN) is geo-restricted to
+// Greece and allowlists Antenna's own Origins: a request with no Origin at all
+// gets 200, ours gets 403. That is how native apps such as GreekTV Lite play it
+// - their HTTP client sends no Origin. A browser always sends one, so the page
+// can't fetch it, but the relay (which sends Antenna's referer) can, provided
+// the server runs from a Greek IP: start.bat at home, or a VM in Greece.
+// From Vercel's Frankfurt region it still gets a geo 403. See README.md.
 //
-// Ant1 and Mega are also marked UNAVAILABLE, because their embed fallback is
-// dead too (checked 2026-10-05 from a Greek IP): on greektv.live, Ant1 shows
-// "Σφάλμα αναπαραγωγής" as its CDN refuses the page's Origin, and Mega's
-// Vindral player is refused with "Domain not allowed". Mega's player would
-// still accept our origin, but that refusal is the broadcaster blocking
-// aggregators on purpose, so we don't route around it.
+// Mega is marked UNAVAILABLE: it has no open stream and its embed fallback is
+// dead (checked 2026-10-05 from a Greek IP) - Mega's Vindral player is refused
+// with "Domain not allowed" on greektv.live. It would still accept our origin,
+// but that refusal is the broadcaster blocking aggregators on purpose, so we
+// don't route around it.
 //
 // Row shape: [name, id, slug, categoryIndex, streamUrl|null, tvgId|null, siteUrl?]
 //
@@ -67,7 +68,7 @@ const ROWS = [
   ["ERT 2 Sports",2,"ert-2-sports",0,"https://ert-ucdn.broadpeak-aas.com/bpk-tv/ERT2/default/index.m3u8",null],
   ["ERT 3",3,"ert-3",0,"https://ert-ucdn.broadpeak-aas.com/bpk-tv/ERT3/default/index.m3u8","ERT3.gr@SD"],
   ["Mega",6,"mega",0,null,null,"https://www.megatv.com/live/"],
-  ["Ant1",5,"ant1",0,null,"ANT1.gr@SD","https://www.antenna.gr/live"],
+  ["Ant1",5,"ant1",0,"https://mcdn.antennaplus.gr/live/media0/Ant1/HLS/Ant1.m3u8","ANT1.gr@SD","https://www.antenna.gr/live"],
   ["Alpha",4,"alpha",0,"https://alphatvlive2.siliconweb.com/alphatvlive/live_abr/playlist.m3u8","AlphaTV.gr@SD"],
   ["Star",9,"star",0,"http://livestar.siliconweb.com/starvod/star4/star4.m3u8","StarChannel.gr@SD"],
   ["Open Beyond",7,"open-beyond",0,"https://liveopen.siliconweb.com/openTvLive/liveopen/chunks.m3u8",null],
@@ -365,9 +366,11 @@ const ROWS = [
   ["Radio Popolare (Ιταλία)",920,"radio-popolare",10,"https://livex.radiopopolare.it/radiopop",null,"https://www.radiopopolare.it/"]
 ];
 
-// Channels with neither an open stream nor a working embed. The card stays in
-// the grid but says so, and opening it shows a notice instead of a dead page.
-const UNAVAILABLE = new Set(["ant1", "mega"]);
+// Channels whose embedded page doesn't play. Without a stream they are
+// unavailable: the card stays in the grid but says so, and opening it shows a
+// notice instead of a dead page. With one (Ant1), a failed stream ends on that
+// notice too, rather than falling back to the dead embed.
+const NO_EMBED = new Set(["ant1", "mega"]);
 
 export const CHANNELS = ROWS.map(([name, id, slug, cat, stream, tvg, site]) => ({
   id,
@@ -381,7 +384,8 @@ export const CHANNELS = ROWS.map(([name, id, slug, cat, stream, tvg, site]) => (
   /** True for an Icecast/audio stream rather than an HLS manifest. */
   audio: AUDIO.has(CATEGORIES[cat].key),
   watchUrl: site || `https://www.greektv.live/tv/channel/${id}/${slug}`,
-  unavailable: UNAVAILABLE.has(slug),
+  noEmbed: NO_EMBED.has(slug),
+  unavailable: NO_EMBED.has(slug) && !stream,
 }));
 
 export const BY_ID = new Map(CHANNELS.map((c) => [c.id, c]));
@@ -390,9 +394,9 @@ export const BY_TVG = new Map(CHANNELS.filter((c) => c.tvg).map((c) => [c.tvg, c
 // Hosts that serve a stream but can never be fetched straight from the page, so
 // the player skips the direct attempt and relays immediately.
 //
-// Empty today, and measured rather than assumed: a probe of all 40 https stream
-// hosts in this catalogue found every reachable one already sends
-// Access-Control-Allow-Origin, so none of them need this. The 16 plain-http
-// streams are handled separately - an https page can never load those, and the
-// player forces the relay for them on scheme alone.
-export const RELAY_ONLY_HOSTS = new Set([]);
+// Measured rather than assumed: a probe of all 40 https stream hosts found
+// every reachable one sends Access-Control-Allow-Origin. The exception is
+// Ant1's, which answers 403 to any Origin but Antenna's own (see the top of
+// this file). The 16 plain-http streams are handled separately - an https page
+// can never load those, and the player forces the relay for them on scheme.
+export const RELAY_ONLY_HOSTS = new Set(["mcdn.antennaplus.gr"]);

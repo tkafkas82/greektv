@@ -923,7 +923,31 @@ function failed(reason) {
   const ch = playing;
   teardown();
   if (!ch) return;
+  if (ch.noEmbed) {
+    showNoEmbed(ch, reason);
+    return;
+  }
   showEmbed(ch, reason);
+}
+
+/**
+ * Ant1's stream only plays through a relay on a Greek IP, and its embedded
+ * page is dead, so a failure ends here: say why, offer another go, and link the
+ * broadcaster's own live page.
+ */
+function showNoEmbed(ch, reason) {
+  syncStage();
+  showNote(
+    "Η ροή δεν αποκρίθηκε",
+    `Το ${ch.name} παίζει μόνο από ελληνική IP, μέσω του τοπικού διακομιστή ` +
+      `(start.bat) ή VM στην Ελλάδα (${reason}).` +
+      `<button type="button" class="retry">Δοκιμή ροής ξανά</button>` +
+      `<a class="golive" href="${ch.watchUrl}" target="_blank" rel="noopener">` +
+      `Ζωντανά στο ${siteHost(ch)} ↗</a>`
+  );
+  noteBody.querySelector(".retry").addEventListener("click", () => {
+    loadChannel(ch, { push: false });
+  });
 }
 
 function paintPlayerGuide(ch) {
