@@ -59,7 +59,7 @@ fullscreen button (fullscreen takes the whole stage, so the arrows come along),
 and every switch shows a TV-style banner with the channel number, name and
 current programme. Keys while a channel is on screen: `←`/`→` (or `PgUp`/`PgDn`,
 `[`/`]`) zap, digits dial a channel number like a remote, `M` mutes, `F` goes
-fullscreen, `P` docks or expands, `I` shows the banner again. The docked corner
+fullscreen, `P` docks or expands, `S` stops, `I` shows the banner again. The docked corner
 window has its own `‹ ›` and answers `[`/`]`, digits, `M`, `P` while the grid is
 browsed. The browser's own picture-in-picture window and hardware media keys
 get previous/next through the Media Session API; in that window, channels with
@@ -629,7 +629,12 @@ playlist and re-match the `stream` column in `public/channels.js`.
   in `localStorage`, per browser.
 - Sort by category, Α–Ω, or channel number; filter to only channels that play or
   only channels with a guide.
-- `Esc` closes the player. `#ch=<id>` in the URL opens straight into a channel.
+- `Esc` and **✕** close the player and stop a TV channel (radio carries on in
+  the mini bar, as before); the picture-in-picture
+  button (or `P`) is the one that keeps it playing in a corner. **■** stops the
+  stream but keeps the player open, with **▶ Αναπαραγωγή** to start it again; it
+  sits in the header and on the picture, and in fullscreen a ✕ joins it there.
+  `#ch=<id>` in the URL opens straight into a channel.
 
 - Every plate — card, player header, channel rail, radio stage, mini bar — shows
   the channel's own logo, with its monogram as the fallback.

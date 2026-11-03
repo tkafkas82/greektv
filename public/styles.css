@@ -461,6 +461,12 @@ button{font:inherit; color:inherit}
 .zap-edge svg{width:20px; height:20px; fill:currentColor}
 .stage-fs{top:10px; right:10px; width:34px; height:34px; border-radius:7px}
 .stage-fs svg{width:15px; height:15px; fill:currentColor}
+/* Top-right row: stop, fullscreen, and - in fullscreen only - close. */
+#s-stop{right:50px}
+.stage:fullscreen #s-stop{right:90px}
+.stage:fullscreen #s-fs{right:50px}
+#s-close{display:none}
+.stage:fullscreen #s-close{display:grid}
 .zap-edge:hover, .stage-fs:hover{background:rgba(5,8,13,.82)}
 .zap-edge[hidden], .stage-fs[hidden]{display:none}
 .stage.awake .zap-edge, .stage.awake .stage-fs,
