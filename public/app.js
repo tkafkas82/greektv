@@ -1231,7 +1231,8 @@ function showEmbed(ch, reason) {
     embedNote.append(retry);
   }
 
-  frame.src = ch.embedUrl;
+  // Twitch frames only for the host named in its parent= parameter.
+  frame.src = ch.embedUrl.replace("{host}", location.hostname);
 }
 
 /**

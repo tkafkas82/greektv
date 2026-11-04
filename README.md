@@ -1,6 +1,6 @@
 # Greek TV & Radio
 
-All **244 Greek TV channels** plus **21 radio stations** — 7 Greek and 14
+All **239 Greek TV channels** plus **26 radio stations** — 12 Greek and 14
 European music stations — in one grid, grouped into eleven categories, with the **current programme** for the channels a public guide
 covers and **in-app playback** for everything that has an open stream.
 
@@ -74,7 +74,7 @@ Channels split into two kinds, marked `LIVE` and `WEB` on every card:
   still load inside the frame. You may need to press **Δείτε Τώρα** within it to
   start, which the player says on screen.
 
-### Playback: 86 of 272 channels
+### Playback: 168 of 265 channels
 
 greektv.live does **not** expose its stream URLs. Its channel pages ship
 `"streams":[]` next to an `"encryptedStreams":["YGMGcA6lxqpM0f3…"]` blob that is
@@ -85,8 +85,8 @@ Instead, streams come from the **openly published
 [iptv-org Greek playlist](https://iptv-org.github.io/iptv/countries/gr.m3u)**.
 Matching its 71 entries against the catalogue by name yields 65 channels with a
 playable HLS URL, plus Open Beyond, ERT 1 and ERT 2 Sports, so **68** are marked
-`LIVE`. The other 184 fall back to the embedded page described above, so they
-still play without leaving the grid.
+`LIVE`. The rest fall back to the embedded page described above, so they
+still play without leaving the grid (but see *Channels found at the source* below).
 
 ERT 1 and ERT 2 Sports are not in iptv-org but come from the same ERT CDN as
 ERT 3 and ERT News (`ert-ucdn.broadpeak-aas.com/bpk-tv/<NAME>/default/index.m3u8`),
@@ -133,6 +133,30 @@ is no stream for the `<video>` element, and the browser's own picture-in-picture
 ever adds our origin to the denylist, Mega goes back to `N/A`: put `mega` in
 `NO_EMBED` and remove its `PLAYER_EMBED` entry.
 
+**Channels found at the source (2026-11-04).** Of the 175 channels that only
+framed a greektv.live page, 62 now have a stream and 11 an official player,
+each found on the broadcaster's own site or an official partner and checked
+from a Greek IP. The encrypted greektv.live list was not touched.
+
+- **Streams** come from broadcasters' own CDNs (Antenna for Makedonia TV, ERT for
+  ERT Kids / ERT News 2 / 3 / sign language (`ERTNews_Sign`), GRNET for Vouli TV 2 / 3,
+  Cloudskep for Ant1 CY / Omega / RIK Sat, siliconweb for One Channel / Star
+  International), from regional hosts the channels' sites embed (streams.gr,
+  crystalweb, hellasnet, bozztv…) and from official FAST feeds (Samsung TV Plus /
+  wurl, Rakuten / Amagi, Stingray). Makedonia TV shares Ant1's CDN rules, so it is
+  relay-only too. `ott.tv5monde.com` sends `Access-Control-Allow-Origin:
+  tv5monde.com`, which browsers reject, so TV5 Monde is relay-only as well.
+- **Players** (`PLAYER_EMBED`) are the official 24/7 YouTube lives of Euronews GR /
+  EN, Sky News and Space Live; the Kick players madtv.gr and hotbeats embed; the
+  Twitch players of Pro News (`pronewstv1`) and PAKOE, whose `parent=` has to
+  name the framing host, so `{host}` is filled in at play time; and the sites' own
+  widgets for Ellada Web TV, Kids TV CY and Thessalia TV.
+- **Left out on purpose:** channels whose only copy is a pirate restream (Cartoon
+  Network, CNN, BBC, Fox News), raw-IP / UDP proxies (RIK 1 / 2 / HD, Extra
+  Channel), short-lived tokens (Alpha CY, Pluto-only channels), and matches that
+  might be a different channel with the same name (Classic Cinema, Classic Rock,
+  Retro Music, Jazz TV, Xtrema Retro Cartoons, Baraza TV Hits). They stay `WEB`.
+
 One channel is added on top of that: **Open Beyond**, which iptv-org does not
 carry. Its broadcaster publishes the current manifest itself, from the JSON the
 tvopen.gr embed player reads, so nothing here decrypts anyone else’s bundle.
@@ -169,9 +193,9 @@ in `app.js` is the setting: the box is set from it on every load (and has
 Deep links ignore the filter: `/c/<slug>` opens a channel even when its card is
 filtered out of the grid.
 
-### Radio: 21 stations
+### Radio: 26 stations
 
-Seven Greek stations sit in **Ραδιόφωνο** and fourteen European ones in **Ευρώπη
+Twelve Greek stations sit in **Ραδιόφωνο** and fourteen European ones in **Ευρώπη
 FM**. Both categories are audio (`AUDIO` in `channels.js`), and a station
 behaves like any other
 card — search, favourites, deep links, the `LIVE`/`WEB` tag and the stream
@@ -186,6 +210,12 @@ retries all apply unchanged.
 | Nitro Radio 98.6 | `politismedia-sec.live24.gr` | AAC+ 128k |
 | Republic Radio | `netradio.live24.gr` | MP3 128k |
 | Sport FM 94.6 | `sportfm.live24.gr` | MP3 128k |
+| ERT 80s / 90s / Vintage / Now Hits | `radiostreaming.ert.gr` | MP3 256k |
+| Jackson Palace | `jacksonspalace.radioca.st` | MP3 |
+
+The four ERT stations and Jackson Palace used to be `WEB` cards under Μουσική.
+Their only official feed is audio: ERT's CDN has no video for its visual-radio
+channels, so they moved to Ραδιόφωνο.
 
 The European stations were picked for being in the spirit of En Lefko — public
 or independent, curated and alternative-leaning rather than a chart rotation:
@@ -286,7 +316,7 @@ track takes that line), the player, and the mini bar.
 
 A station with nothing to report shows an em dash rather than a guess.
 
-### Guide: 56 of 244 channels
+### Guide: 56 of 239 channels
 
 greektv.live's own EPG endpoint is token-gated — `GET /api/data/epg?source=gr`
 returns `403 {"error":"Invalid request method"}` without the `ts`/`sid`/`ref`/`uid`
@@ -558,7 +588,7 @@ downloading anything.
 Two sources, because neither covers the whole catalogue:
 
 - **TV** — the greektv.live `/tv` page ships its whole channel list as an
-  embedded JSON payload, one `logo` URL per channel, so all 244 cost a single
+  embedded JSON payload, one `logo` URL per channel, so all 239 cost a single
   request. The images themselves live in a public GitHub repo.
 - **Radio** — the stations are not in that directory, so their logos are
   pinned by hand in the script's `PINNED` table, from each station's own site
