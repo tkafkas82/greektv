@@ -1,6 +1,6 @@
 # Greek TV & Radio
 
-All **251 Greek TV channels** plus **21 radio stations** — 7 Greek and 14
+All **244 Greek TV channels** plus **21 radio stations** — 7 Greek and 14
 European music stations — in one grid, grouped into eleven categories, with the **current programme** for the channels a public guide
 covers and **in-app playback** for everything that has an open stream.
 
@@ -286,7 +286,7 @@ track takes that line), the player, and the mini bar.
 
 A station with nothing to report shows an em dash rather than a guess.
 
-### Guide: 56 of 251 channels
+### Guide: 56 of 244 channels
 
 greektv.live's own EPG endpoint is token-gated — `GET /api/data/epg?source=gr`
 returns `403 {"error":"Invalid request method"}` without the `ts`/`sid`/`ref`/`uid`
@@ -558,7 +558,7 @@ downloading anything.
 Two sources, because neither covers the whole catalogue:
 
 - **TV** — the greektv.live `/tv` page ships its whole channel list as an
-  embedded JSON payload, one `logo` URL per channel, so all 251 cost a single
+  embedded JSON payload, one `logo` URL per channel, so all 244 cost a single
   request. The images themselves live in a public GitHub repo.
 - **Radio** — the stations are not in that directory, so their logos are
   pinned by hand in the script's `PINNED` table, from each station's own site

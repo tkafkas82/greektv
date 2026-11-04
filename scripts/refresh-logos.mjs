@@ -7,7 +7,7 @@
 //
 //   1. greektv.live - the same directory the catalogue itself came from. Its
 //      /tv page ships the whole channel list as an embedded JSON payload, one
-//      entry per channel with a `logo` URL, so 251 TV logos cost one request.
+//      entry per channel with a `logo` URL, so 244 TV logos cost one request.
 //      The images themselves are hosted in a public GitHub repo.
 //   2. PINNED below - the radio stations are not in that directory, so their
 //      logos are pinned by hand, from each station's own site or Wikipedia. See the comments

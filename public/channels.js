@@ -8,7 +8,7 @@
 // (https://iptv-org.github.io/iptv/countries/gr.m3u), except where a broadcaster
 // publishes its own live manifest and iptv-org does not carry the channel, in
 // which case the URL here is a fallback and public/resolvers.js says how to get
-// the current one. Only 67 of the 251 channels have a stream; the rest are
+// the current one. Only 68 of the 244 channels have a stream; the rest are
 // directory-only. See README.md.
 //
 // Ant1's stream is relay-only. Its CDN (Google Media CDN) is geo-restricted to
@@ -78,13 +78,6 @@ const ROWS = [
   ["ERT News",500,"ert-news",0,"https://ert-ucdn.broadpeak-aas.com/bpk-tv/ERTNews/default/index.m3u8","ERTNews.gr@HD"],
   ["ERT Sports 1",501,"ert-sports-1",1,"http://hbbtvapp.ert.gr/stream.php/v/vid_ertsports_mpeg.2ts","ERTSports1.gr@HD"],
   ["ERT Sports 2",502,"ert-sports-2",1,"http://hbbtvapp.ert.gr/stream.php/v/vid_ertplay2_mpeg.2ts","ERTSports2.gr@HD"],
-  ["Skai Sports 2",815,"skai-sports-2",1,null,null],
-  ["ERT Sports 3",633,"ert-sports-3",1,null,null],
-  ["Poker TV",766,"poker-tv",1,null,null],
-  ["Pame Stoixima Racing",520,"pame-stoixima-racing",1,null,null],
-  ["ERT Sports 4",132,"ert-sports-4",1,null,null],
-  ["Billiard TV",745,"billiard-tv",1,null,null],
-  ["Outdoor Action TV",768,"outdoor-action-tv",1,null,null],
   ["Tennis+",777,"tennis",1,null,null],
   ["Next Media TV",783,"next-media-tv",1,null,null],
   ["Skai Sports",793,"skai-sports",1,null,null],
