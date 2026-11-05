@@ -650,7 +650,8 @@ playlist and re-match the `stream` column in `public/channels.js`.
 
 - Click anywhere on a card to watch it in the overlay. The ↗ is the only control
   that opens greektv.live in a new tab.
-- `←` `→` (or `↑` `↓`, or the `‹ ›` buttons) change channel with the player open.
+- `←` `→` (or the `‹ ›` buttons) change channel with the player open; `↑` `↓`
+  turn the volume up and down (TV and radio, remembered between visits).
 - `/` or `Ctrl`/`⌘`+`K` — search. Accent-insensitive, and transliterates Greek
   to Latin, so `σκαι` finds *Skai*.
 - **Ζάπινγκ** — a random channel from whatever is currently filtered, preferring

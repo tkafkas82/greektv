@@ -1381,6 +1381,48 @@ function toggleMute() {
   flashOsd(1400);
 }
 
+/* ---- volume ----
+   Up/Down step the volume of whatever is playing, video or radio, and the level
+   is shared and remembered so the next channel starts where the last one was.
+   An embedded page keeps its own volume, out of reach of the parent page. */
+const VOLUME_STEP = 0.1;
+let volume = Number(store.get("greektv.volume", 1));
+if (!Number.isFinite(volume) || volume < 0 || volume > 1) volume = 1;
+video.volume = volume;
+radio.volume = volume;
+
+function stepVolume(dir) {
+  const el = playing && playing.audio ? radio : video;
+  if (!playing.audio && (video.hidden || !video.currentSrc)) {
+    document.getElementById("osd-num").textContent = "";
+    document.getElementById("osd-name").textContent = "Ένταση";
+    document.getElementById("osd-now").textContent = "Ρυθμίζεται μέσα από τον ενσωματωμένο player";
+    flashOsd(1600);
+    return;
+  }
+  volume = Math.round(Math.min(1, Math.max(0, volume + dir * VOLUME_STEP)) * 10) / 10;
+  video.volume = volume;
+  radio.volume = volume;
+  // Turning it up out of silence also lifts the mute.
+  if (dir > 0 && el.muted) el.muted = false;
+  store.set("greektv.volume", volume);
+  document.getElementById("osd-num").textContent = "";
+  document.getElementById("osd-name").textContent = el.muted || volume === 0 ? "Ένταση · σίγαση" : "Ένταση";
+  document.getElementById("osd-now").textContent =
+    "▮".repeat(Math.round(volume * 10)) + "▯".repeat(10 - Math.round(volume * 10)) + `  ${Math.round(volume * 100)}%`;
+  flashOsd(1400);
+}
+
+// The native controls' slider is the other way in; keep the shared level in step.
+for (const el of [video, radio]) {
+  el.addEventListener("volumechange", () => {
+    if (Math.abs(el.volume - volume) < 0.001) return;
+    volume = el.volume;
+    (el === video ? radio : video).volume = volume;
+    store.set("greektv.volume", volume);
+  });
+}
+
 function togglePause() {
   const el = playing && playing.audio ? radio : video;
   // An embedded page or a channel that hasn't loaded has nothing to pause.
@@ -1739,14 +1781,19 @@ document.addEventListener("keydown", (ev) => {
     }
     // Zap through the reel. Skipped while focus is inside the embedded page,
     // which owns its own key handling.
-    if (ev.key === "ArrowLeft" || ev.key === "ArrowUp") {
+    if (ev.key === "ArrowLeft") {
       ev.preventDefault();
       stepChannel(-1);
       return;
     }
-    if (ev.key === "ArrowRight" || ev.key === "ArrowDown") {
+    if (ev.key === "ArrowRight") {
       ev.preventDefault();
       stepChannel(1);
+      return;
+    }
+    if (ev.key === "ArrowUp" || ev.key === "ArrowDown") {
+      ev.preventDefault();
+      if (playing) stepVolume(ev.key === "ArrowUp" ? 1 : -1);
       return;
     }
     return;
