@@ -1767,6 +1767,19 @@ function playerKey(ev) {
   return false;
 }
 
+// A framed player can take keyboard focus - Mega's Vindral player focuses
+// itself as it starts - and keys pressed inside a cross-origin frame never
+// reach this page, so Left/Right stopped zapping. Whenever focus lands in the
+// frame, take it back: a click inside still reaches the frame (mouse events
+// follow the pointer, not focus), and the reel keys keep working.
+window.addEventListener("blur", () => {
+  setTimeout(() => {
+    if (document.activeElement === frame && !frame.hidden) {
+      stage.focus({ preventScroll: true });
+    }
+  }, 0);
+});
+
 document.addEventListener("keydown", (ev) => {
   if ((player.hasAttribute("open") || isDocked()) && playing && playerKey(ev)) {
     ev.preventDefault();
@@ -1779,8 +1792,8 @@ document.addEventListener("keydown", (ev) => {
       closePlayer({ stop: true });
       return;
     }
-    // Zap through the reel. Skipped while focus is inside the embedded page,
-    // which owns its own key handling.
+    // Zap through the reel. Focus is kept out of embedded pages (see the
+    // window blur handler above) so these reach us there too.
     if (ev.key === "ArrowLeft") {
       ev.preventDefault();
       stepChannel(-1);
