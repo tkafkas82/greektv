@@ -445,6 +445,7 @@ const player = document.getElementById("player");
 const video = document.getElementById("p-video");
 const frame = document.getElementById("p-frame");
 const stage = document.querySelector(".stage");
+const vindralBox = document.getElementById("p-vindral");
 const note = document.getElementById("p-note");
 const noteTitle = document.getElementById("p-note-title");
 const noteBody = document.getElementById("p-note-body");
@@ -536,6 +537,7 @@ function teardown() {
   if (frame.getAttribute("src")) frame.removeAttribute("src");
   frame.hidden = true;
   stage.classList.remove("framed");
+  stopVindral();
   video.hidden = false;
   embedNote.hidden = true;
   // Deliberately does not stop `radio`: teardown clears the visual stage, and
@@ -1188,8 +1190,112 @@ async function loadChannel(ch, { push = true } = {}) {
     return;
   }
 
+  // Played on the page through Vindral's SDK; its frame is the fallback.
+  if (ch.vindral) {
+    showVindral(ch);
+    return;
+  }
+
   // The channel has no open stream: straight to its embedded page.
   showEmbed(ch, null);
+}
+
+/* ---- Vindral ----
+   Mega streams only through Vindral (low-latency WebRTC/MSE). Its embed
+   player is a cross-origin frame whose volume and keys the page can't reach,
+   so the SDK plays it here instead and Up/Down, M and Space work as on any
+   other channel. Pinned to a version, loaded only when such a channel opens. */
+const VINDRAL_SDK = "https://cdn.jsdelivr.net/npm/@vindral/web-sdk@4.6.0/core.js";
+let vindral = null;
+let vindralSdk = null;
+
+function stopVindral() {
+  if (vindral) {
+    try {
+      vindral.unload();
+    } catch {
+      // Already unloaded after a fatal error.
+    }
+    vindral = null;
+  }
+  vindralBox.replaceChildren();
+  vindralBox.hidden = true;
+}
+
+async function showVindral(ch) {
+  showNote("Σύνδεση…", "Φόρτωση ροής.", { spin: true });
+  let Vindral;
+  try {
+    vindralSdk ||= import(VINDRAL_SDK);
+    ({ Vindral } = await vindralSdk);
+  } catch (err) {
+    vindralSdk = null;
+    if (playing === ch) showEmbed(ch, null);
+    return;
+  }
+  if (playing !== ch) return;
+
+  stopVindral();
+  video.hidden = true;
+  vindralBox.hidden = false;
+  const inst = new Vindral({
+    url: "https://lb.cdn.vindral.com",
+    channelId: ch.vindral,
+    minBufferTime: 2000,
+    // The page keeps its own media session for the channel.
+    mediaSessionEnabled: false,
+  });
+  vindral = inst;
+  inst.volume = volume;
+  inst.on("playback state", (state) => {
+    if (vindral !== inst) return;
+    if (state === "playing") hideNote();
+  });
+  // The browser wants a click before it plays sound.
+  inst.on("needs user input", () => {
+    if (vindral !== inst) return;
+    showNote("Πατήστε για αναπαραγωγή", "Ο browser χρειάζεται ένα κλικ για να ξεκινήσει τον ήχο.");
+    const resume = () => {
+      if (vindral === inst) {
+        hideNote();
+        inst.play();
+      }
+    };
+    note.addEventListener("click", resume, { once: true });
+    stage.addEventListener("click", resume, { once: true });
+  });
+  // A fatal error unloads the instance: fall back to the official frame.
+  inst.on("error", (err) => {
+    if (vindral !== inst || !err.isFatal()) return;
+    vindral = null;
+    vindralBox.replaceChildren();
+    vindralBox.hidden = true;
+    showEmbed(ch, null);
+  });
+  inst.attach(vindralBox);
+  inst.play();
+}
+
+/**
+ * What Up/Down, M and Space act on: the radio, the page's video, or the
+ * Vindral instance. Null for an embedded page or nothing loaded yet.
+ */
+function activeMedia() {
+  if (!playing) return null;
+  if (playing.audio) return radio;
+  if (vindral) {
+    const inst = vindral;
+    return {
+      get muted() { return inst.muted; },
+      set muted(v) { inst.muted = v; },
+      set volume(v) { inst.volume = v; },
+      get paused() { return inst.playbackState === "paused"; },
+      play: () => Promise.resolve(inst.play()),
+      pause: () => inst.pause(),
+    };
+  }
+  if (video.hidden || !video.currentSrc) return null;
+  return video;
 }
 
 /**
@@ -1372,7 +1478,7 @@ document.getElementById("s-prev").addEventListener("click", () => stepChannel(-1
 document.getElementById("s-next").addEventListener("click", () => stepChannel(1));
 
 function toggleMute() {
-  const el = playing && playing.audio ? radio : video;
+  const el = activeMedia() || video;
   el.muted = !el.muted;
   if (!playing) return;
   document.getElementById("osd-num").textContent = "";
@@ -1384,7 +1490,8 @@ function toggleMute() {
 /* ---- volume ----
    Up/Down step the volume of whatever is playing, video or radio, and the level
    is shared and remembered so the next channel starts where the last one was.
-   An embedded page keeps its own volume, out of reach of the parent page. */
+   An embedded page keeps its own volume, out of reach of the parent page;
+   Mega's Vindral player runs on the page, so it follows the level too. */
 const VOLUME_STEP = 0.1;
 let volume = Number(store.get("greektv.volume", 1));
 if (!Number.isFinite(volume) || volume < 0 || volume > 1) volume = 1;
@@ -1392,8 +1499,8 @@ video.volume = volume;
 radio.volume = volume;
 
 function stepVolume(dir) {
-  const el = playing && playing.audio ? radio : video;
-  if (!playing.audio && (video.hidden || !video.currentSrc)) {
+  const el = activeMedia();
+  if (!el) {
     document.getElementById("osd-num").textContent = "";
     document.getElementById("osd-name").textContent = "Ένταση";
     document.getElementById("osd-now").textContent = "Ρυθμίζεται μέσα από τον ενσωματωμένο player";
@@ -1403,6 +1510,7 @@ function stepVolume(dir) {
   volume = Math.round(Math.min(1, Math.max(0, volume + dir * VOLUME_STEP)) * 10) / 10;
   video.volume = volume;
   radio.volume = volume;
+  if (vindral) vindral.volume = volume;
   // Turning it up out of silence also lifts the mute.
   if (dir > 0 && el.muted) el.muted = false;
   store.set("greektv.volume", volume);
@@ -1424,13 +1532,15 @@ for (const el of [video, radio]) {
 }
 
 function togglePause() {
-  const el = playing && playing.audio ? radio : video;
+  const el = activeMedia();
   // An embedded page or a channel that hasn't loaded has nothing to pause.
-  if (!playing || (!playing.audio && (video.hidden || !video.currentSrc))) return;
-  if (el.paused) el.play().catch(() => {});
+  if (!el) return;
+  // Read before acting: Vindral's state changes a moment after the call.
+  const wasPaused = el.paused;
+  if (wasPaused) el.play().catch(() => {});
   else el.pause();
   document.getElementById("osd-num").textContent = "";
-  document.getElementById("osd-name").textContent = el.paused ? "Παύση" : "Αναπαραγωγή";
+  document.getElementById("osd-name").textContent = wasPaused ? "Αναπαραγωγή" : "Παύση";
   document.getElementById("osd-now").textContent = playing.name;
   flashOsd(1400);
 }

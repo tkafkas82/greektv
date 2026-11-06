@@ -124,14 +124,18 @@ allowlist:
 | `https://www.greektv.live` | `403 Domain not allowed` |
 | `http://localhost:3000`, a LAN address, a `*.vercel.app` domain, `megatv.com` | `200` |
 
-So the greektv.live page that used to be Mega's fallback is dead, but the very
-same official player loads fine framed in our page. Mega's card is a `WEB`
-channel whose frame is that player (`PLAYER_EMBED` in `public/channels.js`), not
-a greektv.live page, and it needs no "press play". Vindral's HLS output
-(`/api/hls`, meant for AirPlay) is not enabled for this channel (`404`), so there
-is no stream for the `<video>` element, and the browser's own picture-in-picture skips it like every `WEB` channel. If Vindral
-ever adds our origin to the denylist, Mega goes back to `N/A`: put `mega` in
-`NO_EMBED` and remove its `PLAYER_EMBED` entry.
+So the greektv.live page that used to be Mega's fallback is dead, but Vindral
+itself plays fine from our page. Mega is played **on the page** with Vindral's
+web SDK (`@vindral/web-sdk`, core build, pinned and loaded from jsdelivr only when
+Mega opens; `VINDRAL` in `public/channels.js`), not in a frame: a cross-origin
+frame keeps its own volume and swallows key presses, so `↑`/`↓`, `M` and `Space`
+could not reach it. If the SDK fails to load or hits a fatal error, the stage
+falls back to the same official player in a frame (`PLAYER_EMBED`). Vindral's
+HLS output (`/api/hls`, meant for AirPlay) is not enabled for this channel
+(`404`), so the card stays a `WEB` channel and the browser's own
+picture-in-picture skips it. If Vindral ever adds our origin to the denylist,
+Mega goes back to `N/A`: put `mega` in `NO_EMBED` and remove its `VINDRAL` and
+`PLAYER_EMBED` entries.
 
 **Channels found at the source (2026-11-04).** Of the 175 channels that only
 framed a greektv.live page, 62 now have a stream and 11 an official player,

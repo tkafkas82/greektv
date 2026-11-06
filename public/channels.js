@@ -369,6 +369,13 @@ const NO_EMBED = new Set(["ant1"]);
 
 // The broadcaster's own embeddable player, loaded in place of the greektv.live
 // page. Mega's is the Vindral iframe megatv.com/live builds in live-*.js.
+// Channels played on the page itself through Vindral's web SDK, so the
+// player's keys (volume, mute, pause) reach them. Their PLAYER_EMBED frame is
+// the fallback when the SDK fails to load or connect.
+const VINDRAL = {
+  mega: "alteregomedia_megatv1_ci_6cc490c7-e5c6-486b-acf0-9bb9c20fa670",
+};
+
 const PLAYER_EMBED = {
   mega:
     "https://player.vindral.com/?core.channelId=alteregomedia_megatv1_ci_6cc490c7-e5c6-486b-acf0-9bb9c20fa670" +
@@ -402,6 +409,8 @@ export const CHANNELS = ROWS.map(([name, id, slug, cat, stream, tvg, site]) => (
   embedUrl: PLAYER_EMBED[slug] || site || `https://www.greektv.live/tv/channel/${id}/${slug}`,
   /** True when embedUrl is the broadcaster's player, so needs no "press play". */
   ownPlayer: slug in PLAYER_EMBED,
+  /** Vindral channel id: played through the SDK rather than a frame. */
+  vindral: VINDRAL[slug] || null,
   noEmbed: NO_EMBED.has(slug),
   unavailable: NO_EMBED.has(slug) && !stream,
 }));

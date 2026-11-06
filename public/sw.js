@@ -23,7 +23,7 @@
 //
 // Bump VERSION to invalidate the shell. Old caches are dropped on activate.
 
-const VERSION = "v16";
+const VERSION = "v17";
 const SHELL = `greektv-shell-${VERSION}`;
 
 const ASSETS = [
