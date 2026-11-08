@@ -210,6 +210,8 @@ function card(ch) {
     paintFav(star, on);
     if (playing && playing.id === ch.id) paintPlayerFav();
     if (state.sort === "cat") render();
+    // The reel puts favourites first, so a docked player's zapping follows.
+    else if (playing) buildSwitcher();
   });
 
   paintNow(el, ch);
@@ -996,7 +998,11 @@ function paintPlayerGuide(ch) {
  * station straight into a TV channel is never what zapping means, and on radio
  * the list should be the other stations rather than all 71 playable channels.
  */
-const reelFor = (ch) => visible().filter((c) => Boolean(c.audio) === Boolean(ch && ch.audio));
+const reelFor = (ch) => {
+  const kind = visible().filter((c) => Boolean(c.audio) === Boolean(ch && ch.audio));
+  // Favourites lead, grouped, so they are the first stops on the reel too.
+  return [...kind.filter((c) => favs.has(c.id)), ...kind.filter((c) => !favs.has(c.id))];
+};
 
 function buildSwitcher() {
   reel = reelFor(playing);
@@ -1004,7 +1010,17 @@ function buildSwitcher() {
   switchCount.textContent = `${radio ? "Σταθμοί" : "Κανάλια"} · ${reel.length}`;
 
   const frag = document.createDocumentFragment();
-  for (const ch of reel) {
+  const favCount = reel.filter((c) => favs.has(c.id)).length;
+  const heading = (text) => {
+    const li = document.createElement("li");
+    li.className = "sw-group";
+    li.textContent = text;
+    frag.appendChild(li);
+  };
+  // With favourites, label the two groups; without, the list stays as it was.
+  if (favCount) heading(`★ Αγαπημένα · ${favCount}`);
+  for (const [i, ch] of reel.entries()) {
+    if (favCount && i === favCount && i < reel.length) heading(radio ? "Όλοι οι σταθμοί" : "Όλα τα κανάλια");
     const entry = guide.get(ch.id);
     const li = document.createElement("li");
     const btn = document.createElement("button");
