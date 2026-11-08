@@ -479,6 +479,24 @@ button{font:inherit; color:inherit}
 .stage.framed:hover .zap-edge, .stage.framed:hover .stage-fs{opacity:1; pointer-events:auto}
 .zap-edge:focus-visible, .stage-fs:focus-visible{opacity:1; pointer-events:auto; outline:2px solid #fff; outline-offset:2px}
 
+/* Live pill, bottom right above the native control bar. */
+.stage-live{
+  position:absolute; z-index:3; right:10px; bottom:54px;
+  display:flex; align-items:center; gap:6px; padding:4px 9px 4px 8px;
+  border:0; border-radius:999px; cursor:pointer; color:#fff;
+  font:600 10.5px/1 var(--disp); letter-spacing:.08em;
+  background:rgba(5,8,13,.5); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);
+  opacity:0; pointer-events:none; transition:opacity .18s, background .15s;
+}
+.stage-live i{width:7px; height:7px; border-radius:50%; background:#e5484d}
+.stage-live.behind i{background:#8b919a}
+.stage-live:hover{background:rgba(5,8,13,.82)}
+.stage-live[hidden]{display:none}
+.stage.awake .stage-live, .stage-live.behind{opacity:1; pointer-events:auto}
+.stage-live.behind:not(:hover){opacity:.8}
+.stage-live:focus-visible{opacity:1; pointer-events:auto; outline:2px solid #fff; outline-offset:2px}
+.player[docked] .stage-live{display:none}
+
 /* The channel banner, as a TV shows it after every zap. */
 .osd{
   position:absolute; z-index:2; top:12px; left:12px; max-width:calc(100% - 70px);

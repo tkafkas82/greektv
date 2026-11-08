@@ -59,7 +59,7 @@ fullscreen button (fullscreen takes the whole stage, so the arrows come along),
 and every switch shows a TV-style banner with the channel number, name and
 current programme. Keys while a channel is on screen: `←`/`→` (or `PgUp`/`PgDn`,
 `[`/`]`) zap, digits dial a channel number like a remote, `M` mutes, `F` goes
-fullscreen, `Space` pauses, `P` docks or expands, `I` shows the banner again. The docked corner
+fullscreen, `Space` pauses, `L` (or the `● LIVE` pill) jumps back to the live edge, `P` docks or expands, `I` shows the banner again. The docked corner
 window has its own `‹ ›` and answers `[`/`]`, digits, `M`, `P` while the grid is
 browsed. The browser's own picture-in-picture window and hardware media keys
 get previous/next through the Media Session API; in that window, channels with

@@ -534,6 +534,7 @@ function teardown() {
   }
   video.removeAttribute("src");
   video.load();
+  document.getElementById("s-live").hidden = true;
   // Blanking the iframe matters: an embedded channel page left with its src
   // intact keeps playing audio behind the next channel.
   if (frame.getAttribute("src")) frame.removeAttribute("src");
@@ -1503,6 +1504,50 @@ function toggleFullscreen() {
   }
 }
 document.getElementById("s-fs").addEventListener("click", toggleFullscreen);
+
+/* ---- live edge ----
+   The pill shows for a live stream in the page's own video. A pause or a seek
+   back leaves the picture behind live; the pill turns grey, stays up, and one
+   click (or L) returns to the far right of the progress bar. */
+const liveBtn = document.getElementById("s-live");
+// Further behind than this counts as not live: a few segments of slack.
+const LIVE_SLACK_S = 8;
+
+/** Where "live" is right now, or null for no live stream in the video. */
+function liveEdge() {
+  if (video.hidden || !video.currentSrc) return null;
+  if (hls) {
+    const details = hls.levels[hls.currentLevel]?.details;
+    if (details && !details.live) return null;
+    if (Number.isFinite(hls.liveSyncPosition)) return hls.liveSyncPosition;
+  } else if (video.duration !== Infinity) {
+    return null;
+  }
+  const s = video.seekable;
+  return s.length ? Math.max(s.start(s.length - 1), s.end(s.length - 1) - 3) : null;
+}
+
+function paintLive() {
+  const edge = liveEdge();
+  liveBtn.hidden = edge === null;
+  if (edge === null) return;
+  const behind = video.paused || edge - video.currentTime > LIVE_SLACK_S;
+  liveBtn.classList.toggle("behind", behind);
+  liveBtn.title = behind ? "Μετάβαση στο ζωντανό (L)" : "Ζωντανά (L)";
+}
+
+function goLive() {
+  const edge = liveEdge();
+  if (edge === null) return;
+  if (edge - video.currentTime > 1) video.currentTime = edge;
+  video.play().catch(() => {});
+  paintLive();
+}
+
+liveBtn.addEventListener("click", goLive);
+for (const type of ["timeupdate", "pause", "play", "seeked", "emptied", "loadedmetadata"]) {
+  video.addEventListener(type, paintLive);
+}
 document.getElementById("s-close").addEventListener("click", () => closePlayer({ stop: true }));
 video.addEventListener("dblclick", (ev) => {
   ev.preventDefault();
@@ -1909,6 +1954,10 @@ function playerKey(ev) {
     case "i":
     case "I":
       showOsd(playing, { hold: 4000 });
+      return true;
+    case "l":
+    case "L":
+      goLive();
       return true;
   }
   if (/^[0-9]$/.test(ev.key)) {

@@ -247,6 +247,10 @@
         <button class="stage-fs" id="s-fs" type="button" aria-label="Πλήρης οθόνη" title="Πλήρης οθόνη (F)">
           <svg aria-hidden="true"><use href="#i-expand"/></svg>
         </button>
+        <!-- Back to the live edge after a pause or a seek back (L). Shown for
+             direct streams only; red at the edge, grey and kept up when behind. -->
+        <button class="stage-live" id="s-live" type="button" hidden
+                aria-label="Μετάβαση στο ζωντανό" title="Ζωντανά (L)"><i aria-hidden="true"></i>LIVE</button>
         <!-- Only in fullscreen, where the header and its X are out of view. -->
         <button class="stage-fs" id="s-close" type="button" aria-label="Κλείσιμο (Esc)" title="Κλείσιμο">
           <svg aria-hidden="true"><use href="#i-close"/></svg>
@@ -284,7 +288,7 @@
       </div>
       <p class="keys-hint">
         <kbd>←</kbd><kbd>→</kbd> κανάλι · <kbd>↑</kbd><kbd>↓</kbd> ένταση · <kbd>0</kbd>–<kbd>9</kbd> αριθμός καναλιού ·
-        <kbd>M</kbd> σίγαση · <kbd>F</kbd> πλήρης οθόνη · <kbd>P</kbd> εικόνα σε εικόνα ·
+        <kbd>M</kbd> σίγαση · <kbd>L</kbd> ζωντανά · <kbd>F</kbd> πλήρης οθόνη · <kbd>P</kbd> εικόνα σε εικόνα ·
         <kbd>[</kbd><kbd>]</kbd> κανάλι και στη γωνία
       </p>
       <p class="embed-note" id="p-embed-note" hidden>
