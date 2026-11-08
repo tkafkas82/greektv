@@ -535,6 +535,7 @@ function teardown() {
   video.removeAttribute("src");
   video.load();
   document.getElementById("s-live").hidden = true;
+  liveBase = null;
   // Blanking the iframe matters: an embedded channel page left with its src
   // intact keeps playing audio behind the next channel.
   if (frame.getAttribute("src")) frame.removeAttribute("src");
@@ -1512,6 +1513,10 @@ document.getElementById("s-fs").addEventListener("click", toggleFullscreen);
 const liveBtn = document.getElementById("s-live");
 // Further behind than this counts as not live: a few segments of slack.
 const LIVE_SLACK_S = 8;
+// The smallest lag behind the edge seen while playing. Some streams start well
+// back on purpose (Amagi's FAST channels send EXT-X-START:TIME-OFFSET=0), so
+// "behind" means behind where this stream plays by itself, not behind the edge.
+let liveBase = null;
 
 /** Where "live" is right now, or null for no live stream in the video. */
 function liveEdge() {
@@ -1531,7 +1536,9 @@ function paintLive() {
   const edge = liveEdge();
   liveBtn.hidden = edge === null;
   if (edge === null) return;
-  const behind = video.paused || edge - video.currentTime > LIVE_SLACK_S;
+  const lag = edge - video.currentTime;
+  if (!video.paused && video.readyState >= 3 && (liveBase === null || lag < liveBase)) liveBase = lag;
+  const behind = video.paused || lag - (liveBase ?? 0) > LIVE_SLACK_S;
   liveBtn.classList.toggle("behind", behind);
   liveBtn.title = behind ? "Μετάβαση στο ζωντανό (L)" : "Ζωντανά (L)";
 }
@@ -1540,6 +1547,7 @@ function goLive() {
   const edge = liveEdge();
   if (edge === null) return;
   if (edge - video.currentTime > 1) video.currentTime = edge;
+  liveBase = 0;
   video.play().catch(() => {});
   paintLive();
 }

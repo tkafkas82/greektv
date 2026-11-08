@@ -81,6 +81,9 @@ const ROWS = [
   ["ERT Sports 1",501,"ert-sports-1",1,"http://hbbtvapp.ert.gr/stream.php/v/vid_ertsports_mpeg.2ts","ERTSports1.gr@HD"],
   ["ERT Sports 2",502,"ert-sports-2",1,"http://hbbtvapp.ert.gr/stream.php/v/vid_ertplay2_mpeg.2ts","ERTSports2.gr@HD"],
   ["Tennis+",777,"tennis",1,null,null],
+  // Tennis Channel's free ad-supported feed (Samsung TV Plus NL, Amagi). Mostly
+  // replays, classic matches and magazine shows, with some live play.
+  ["Tennis Channel",839,"tennis-channel",1,"https://cdn-ue1-prod.tsv2.amagi.tv/linear/amg01444-tennischannelth-tennischannelnl-samsungnl/playlist.m3u8",null,"https://www.tennischannel.com/"],
   ["Next Media TV",783,"next-media-tv",1,null,null],
   ["Skai Sports",793,"skai-sports",1,null,null],
   ["ERT Sports 5",823,"ert-sports-5",1,null,null],
