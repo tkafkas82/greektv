@@ -67,6 +67,9 @@
   <symbol id="i-expand" viewBox="0 0 24 24">
     <path d="M4 4h6v2H7.4l4 4L10 11.4l-4-4V10H4zm16 0v6h-2V7.4l-4 4L12.6 10l4-4H14V4zM4 20v-6h2v2.6l4-4 1.4 1.4-4 4H10v2zm16 0h-6v-2h2.6l-4-4 1.4-1.4 4 4V14h2z"/>
   </symbol>
+  <symbol id="i-cast" viewBox="0 0 24 24">
+    <path d="M21 3H3a2 2 0 0 0-2 2v3h2V5h18v14h-7v2h7a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zM1 18v3h3a3 3 0 0 0-3-3zm0-4v2a5 5 0 0 1 5 5h2a7 7 0 0 0-7-7zm0-4v2a9 9 0 0 1 9 9h2A11 11 0 0 0 1 10z"/>
+  </symbol>
   <symbol id="i-close" viewBox="0 0 24 24">
     <path d="M5.3 3.9L3.9 5.3 10.6 12l-6.7 6.7 1.4 1.4L12 13.4l6.7 6.7 1.4-1.4L13.4 12l6.7-6.7-1.4-1.4L12 10.6z"/>
   </symbol>
@@ -201,6 +204,11 @@
          aria-label="Άνοιγμα στο greektv.live" title="Άνοιγμα στο greektv.live">
         <svg aria-hidden="true"><use href="#i-ext"/></svg>
       </a>
+      <!-- Shown once a Cast device is on the network (Chrome, Edge, Android). -->
+      <button class="icon-btn" id="p-cast" type="button" hidden aria-pressed="false"
+              aria-label="Μετάδοση σε Chromecast" title="Μετάδοση σε Chromecast">
+        <svg aria-hidden="true"><use href="#i-cast"/></svg>
+      </button>
       <button class="icon-btn" id="p-dock" type="button"
               aria-label="Εικόνα σε εικόνα" title="Εικόνα σε εικόνα (συνεχίζει στη γωνία)">
         <svg aria-hidden="true"><use href="#i-pip"/></svg>
@@ -301,6 +309,15 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.17/hls.min.js"></script>
 <script type="module" src="/app.js"></script>
+<!-- Google Cast sender. The SDK calls this when it is ready, which may be
+     before the module above has run, so the answer is kept for it. -->
+<script>
+  window.__onGCastApiAvailable = function (ok) {
+    window.__castAvailable = ok;
+    window.dispatchEvent(new Event("cast-available"));
+  };
+</script>
+<script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1" async></script>
 <!-- Radio plays through its own element, outside the overlay, so closing the
      player does not stop the audio. The bar below is what is left behind. -->
 <audio id="radio" preload="none"></audio>

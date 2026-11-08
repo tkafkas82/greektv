@@ -1216,8 +1216,12 @@ async function loadChannel(ch, { push = true } = {}) {
     if (relayed) usedRelay = true;
     attach(relayed ? relayUrl(url) : url, { audio: ch.audio });
     syncStage();
+    castFollow();
     return;
   }
+
+  // While casting, say that this one stays on the screen here.
+  castFollow();
 
   // Its embedded page doesn't play either, so say so rather than load it.
   if (ch.unavailable) {
@@ -1505,6 +1509,113 @@ function toggleFullscreen() {
   }
 }
 document.getElementById("s-fs").addEventListener("click", toggleFullscreen);
+
+/* ---- Chromecast ----
+   The Cast button sends the channel's stream URL to the TV's Default Media
+   Receiver, which fetches it itself. So only plain streams cast: not an
+   embedded page, not Mega's Vindral player, not a signed stream whose
+   signature the receiver can't carry, and not one that needs our relay when
+   the relay is on localhost or plain http, which the TV can't use. While
+   casting, zapping changes the channel on the TV and the picture here stays
+   as a muted preview. */
+const castBtn = document.getElementById("p-cast");
+let castCtx = null;
+let castMutedHere = false;
+
+function castableUrl(ch) {
+  if (!ch || !playingUrl || ch.vindral || signedQuery) return null;
+  if (!ch.audio && !playsDirect(ch)) return null;
+  const url = new URL(mustRelay(playingUrl) ? relayUrl(playingUrl) : playingUrl, location.href);
+  if (url.protocol !== "https:") return null;
+  if (/^(localhost|127\.|\[::1\])/.test(url.hostname)) return null;
+  return url.href;
+}
+
+const castSession = () => (castCtx ? castCtx.getCurrentSession() : null);
+
+function paintCast() {
+  const state = castCtx ? castCtx.getCastState() : null;
+  castBtn.hidden = !castCtx || state === cast.framework.CastState.NO_DEVICES_AVAILABLE;
+  const on = Boolean(castSession());
+  castBtn.setAttribute("aria-pressed", on ? "true" : "false");
+  castBtn.title = on ? "Διακοπή μετάδοσης" : "Μετάδοση σε Chromecast";
+}
+
+function castNote(title, text) {
+  document.getElementById("osd-num").textContent = "";
+  document.getElementById("osd-name").textContent = title;
+  document.getElementById("osd-now").textContent = text;
+  flashOsd(2600);
+}
+
+function castCurrent() {
+  const session = castSession();
+  if (!session || !playing) return;
+  const url = castableUrl(playing);
+  const device = session.getCastDevice().friendlyName || "Chromecast";
+  if (!url) {
+    castNote(device, `Το ${playing.name} δεν μεταδίδεται· παίζει μόνο εδώ.`);
+    return;
+  }
+  const info = new chrome.cast.media.MediaInfo(url, playing.audio ? "audio/mpeg" : "application/x-mpegurl");
+  info.streamType = chrome.cast.media.StreamType.LIVE;
+  const meta = new chrome.cast.media.GenericMediaMetadata();
+  meta.title = playing.name;
+  const entry = guide.get(playing.id);
+  meta.subtitle = entry && entry.now ? entry.now.title : CATEGORIES[playing.cat].label;
+  if (playing.logo) meta.images = [new chrome.cast.Image(new URL(playing.logo.url, location.href).href)];
+  info.metadata = meta;
+  const req = new chrome.cast.media.LoadRequest(info);
+  req.autoplay = true;
+  const ch = playing;
+  session.loadMedia(req).then(
+    () => {
+      if (playing !== ch) return;
+      // The TV has the sound now; the picture here stays as a preview.
+      const el = ch.audio ? radio : video;
+      if (!el.muted) {
+        el.muted = true;
+        castMutedHere = true;
+      }
+      castNote(device, `Μετάδοση: ${ch.name}`);
+    },
+    () => castNote(device, `Η μετάδοση του ${ch.name} απέτυχε.`)
+  );
+}
+
+/** Keep the TV on the channel being watched; a no-op when not casting. */
+function castFollow() {
+  if (castSession()) castCurrent();
+}
+
+function initCast() {
+  if (castCtx || !window.cast || !window.cast.framework || !window.chrome || !chrome.cast) return;
+  castCtx = cast.framework.CastContext.getInstance();
+  castCtx.setOptions({
+    receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
+    autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED,
+  });
+  const S = cast.framework.SessionState;
+  castCtx.addEventListener(cast.framework.CastContextEventType.SESSION_STATE_CHANGED, (e) => {
+    if (e.sessionState === S.SESSION_STARTED || e.sessionState === S.SESSION_RESUMED) castCurrent();
+    if (e.sessionState === S.SESSION_ENDED && castMutedHere) {
+      video.muted = false;
+      radio.muted = false;
+      castMutedHere = false;
+    }
+    paintCast();
+  });
+  castCtx.addEventListener(cast.framework.CastContextEventType.CAST_STATE_CHANGED, paintCast);
+  paintCast();
+}
+
+castBtn.addEventListener("click", () => {
+  if (!castCtx) return;
+  if (castSession()) castCtx.endCurrentSession(true);
+  else castCtx.requestSession().catch(() => {});
+});
+if (window.__castAvailable) initCast();
+else window.addEventListener("cast-available", () => window.__castAvailable && initCast());
 
 /* ---- live edge ----
    The pill shows for a live stream in the page's own video. A pause or a seek

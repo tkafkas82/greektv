@@ -59,7 +59,12 @@ fullscreen button (fullscreen takes the whole stage, so the arrows come along),
 and every switch shows a TV-style banner with the channel number, name and
 current programme. Keys while a channel is on screen: `←`/`→` (or `PgUp`/`PgDn`,
 `[`/`]`) zap, digits dial a channel number like a remote, `M` mutes, `F` goes
-fullscreen, `Space` pauses, `L` (or the `● LIVE` pill) jumps back to the live edge, `P` docks or expands, `I` shows the banner again. The docked corner
+fullscreen, `Space` pauses, `L` (or the `● LIVE` pill) jumps back to the live edge, `P` docks or expands, `I` shows the banner again. The Cast button in the player head (shown when a
+Chromecast is on the network, in Chrome, Edge or Android) sends the channel to
+the TV's Default Media Receiver; zapping follows on the TV and the picture here
+stays as a muted preview. Only plain `https` streams cast: embedded pages,
+Mega's Vindral player and signed streams (ΣΠΟΡ FM TV 1) stay on this screen, and
+so do relay-only streams when the relay is on localhost. The docked corner
 window has its own `‹ ›` and answers `[`/`]`, digits, `M`, `P` while the grid is
 browsed. The browser's own picture-in-picture window and hardware media keys
 get previous/next through the Media Session API; in that window, channels with

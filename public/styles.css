@@ -382,6 +382,7 @@ button{font:inherit; color:inherit}
   padding:6px 7px; border:0; border-radius:5px; background:transparent; cursor:pointer; min-width:0;
 }
 .sw:hover{background:var(--surface)}
+#p-cast[aria-pressed="true"]{color:var(--accent)}
 .sw-group{
   padding:7px 7px 3px; font-size:10px; font-weight:600; letter-spacing:.09em;
   text-transform:uppercase; color:var(--muted);
