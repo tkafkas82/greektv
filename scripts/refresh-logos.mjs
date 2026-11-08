@@ -61,6 +61,9 @@ const PINNED = {
   // Nova-era artwork. A wide banner with the sponsor on the left, but the
   // ΣΠΟΡ FM mark sits in the middle, which is the part a wide plate keeps.
   "sport-fm": "https://www.sport-fm.gr/resrc/images/logos/logo-normal_v3.png",
+  // og:image on sportfmtv.gr's channel page.
+  "sport-fm-tv-1":
+    "https://contentful-assets.yinzcam.com/images/4jepypi6v8wj/media_1xos3h0/c928134e3557f1776d8b32cffee3e181/1790853550217-SportFM_TV1_logo_1024.jpg?clxf=t_general_medium",
 
   // European stations. Where the station has a Wikipedia article, its logo is
   // the Commons file that article uses, as the 330px PNG render - the stations'

@@ -259,6 +259,7 @@ export const LOGOS = {
   "ert-kosmos": "kosmos-3.webp",
   "best-radio": "beacb687958a453286a9bc7d07333915.svg",
   "sport-fm": "logo-normal-v3.png",
+  "sport-fm-tv-1": "sportfm-tv1.webp",
   "rne-radio-3": "330px-rne-radio-3-2026-svg.png",
   "radar-lisboa": "icone-teste-1.png",
   "antena-3": "330px-rtp-antena-3-2026-svg.png",

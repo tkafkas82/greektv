@@ -22,6 +22,28 @@ export const RESOLVERS = {
     hosts: ["liveopen.siliconweb.com"],
     pick: (data) => data.stream || data.lowstream || null,
   },
+
+  // ΣΠΟΡ FM TV 1. sportfmtv.gr's player starts an anonymous session with this
+  // public AppSync mutation (the API key is the one the site ships to every
+  // visitor) and gets a CloudFront-signed manifest, valid for about four hours.
+  // The variant playlists and segments it lists are relative and unsigned, so
+  // `carryQuery` has the player add the signature to every request on `hosts`.
+  836: {
+    name: "ΣΠΟΡ FM TV 1",
+    endpoint: "https://vh33zrthcffldaeiaea5snvuem.appsync-api.eu-central-1.amazonaws.com/graphql",
+    request: {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-api-key": "da2-ida73mk7drfhzi67dyh76odb6a" },
+      body: JSON.stringify({
+        query:
+          "mutation($t:String!,$c:String!){startPublicPlayback(tenant_id:$t,content_id:$c,platform:\"web\"){hls_signed_url}}",
+        variables: { t: "VENUE_PAO", c: "6649e847-98ff-425e-b3c7-22e998b41d79" },
+      }),
+    },
+    hosts: ["d1uuspfe6udary.cloudfront.net"],
+    carryQuery: true,
+    pick: (data) => data?.data?.startPublicPlayback?.hls_signed_url || null,
+  },
 };
 
 /**

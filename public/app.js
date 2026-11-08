@@ -587,6 +587,7 @@ function attach(url, { audio = false } = {}) {
       levelLoadingTimeOut: 6000,
       levelLoadingMaxRetry: 1,
       fragLoadingTimeOut: 12000,
+      xhrSetup: signedQuery ? carrySignature(signedQuery) : undefined,
     });
     hls.loadSource(url);
     hls.attachMedia(video);
@@ -1070,7 +1071,7 @@ async function resolveHere(resolver) {
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), RESOLVE_TIMEOUT_MS);
   try {
-    const res = await fetch(resolver.endpoint, { signal: abort.signal });
+    const res = await fetch(resolver.endpoint, { ...resolver.request, signal: abort.signal });
     if (!res.ok) return null;
     const url = acceptableUrl(resolver.pick(await res.json()), resolver);
     // A reachable endpoint that returned something we reject is not a reason to
@@ -1096,9 +1097,33 @@ async function resolveHere(resolver) {
  * than nothing.
  */
 async function resolveStream(ch) {
+  signedQuery = null;
   const resolver = RESOLVERS[ch.id];
   if (!resolver) return ch.stream;
+  const url = await resolveUrl(ch, resolver);
+  if (resolver.carryQuery && url) {
+    const u = new URL(url);
+    if (u.search) signedQuery = { host: u.host, search: u.search.slice(1) };
+  }
+  return url;
+}
 
+/* A signed manifest (CloudFront) whose variant playlists and segments are
+   listed unsigned: hls.js adds the manifest's query to every request on that
+   host which lacks one. Set by resolveStream for resolvers with carryQuery. */
+let signedQuery = null;
+
+function carrySignature({ host, search }) {
+  return (xhr, url) => {
+    const u = new URL(url);
+    if (u.host === host && !u.search) {
+      u.search = search;
+      xhr.open("GET", u.href, true);
+    }
+  };
+}
+
+async function resolveUrl(ch, resolver) {
   const here = await resolveHere(resolver);
   if (here) return here;
 

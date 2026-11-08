@@ -84,6 +84,10 @@ const ROWS = [
   ["Next Media TV",783,"next-media-tv",1,null,null],
   ["Skai Sports",793,"skai-sports",1,null,null],
   ["ERT Sports 5",823,"ert-sports-5",1,null,null],
+  // Sport FM's free OTT channel (YinzCam/Graffiti, AWS). The manifest is signed
+  // per session: RESOLVERS[836] asks for a signed URL, and this unsigned one is
+  // only the fallback that keeps its host on the relay allowlist.
+  ["ΣΠΟΡ FM TV 1",836,"sport-fm-tv-1",1,"https://d1uuspfe6udary.cloudfront.net/out/v1/venue-pao/ch1/live/master.m3u8",null,"https://www.sportfmtv.gr/el/media-video/sport-fm-linear-channel-1"],
   ["Cinema Classics",251,"cinema-classics",2,null,null],
   ["Sierra Channel",820,"sierra-channel",2,null,null],
   ["Netmax",674,"netmax",2,"https://es1.crystalweb.net:1936/netmaxtv/netmaxtv/playlist.m3u8","NetmaxTV.gr@SD"],

@@ -41,9 +41,12 @@ async function resolveLive(resolver) {
   const timer = setTimeout(() => abort.abort(), TIMEOUT_MS);
   try {
     const res = await fetch(resolver.endpoint, {
+      method: resolver.request?.method || "GET",
+      body: resolver.request?.body,
       headers: {
         "user-agent": UA,
         accept: "application/json, text/javascript, */*",
+        ...resolver.request?.headers,
       },
       redirect: "follow",
       signal: abort.signal,

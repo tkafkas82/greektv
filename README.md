@@ -167,6 +167,14 @@ tvopen.gr embed player reads, so nothing here decrypts anyone else’s bundle.
 Because that URL rotates, the catalogue entry is only a fallback and the live one
 is fetched at play time — see [`GET /api/resolve`](#get-apiresolve).
 
+**ΣΠΟΡ FM TV 1** works the same way. sportfmtv.gr's player opens an anonymous
+session with a public AppSync mutation (`startPublicPlayback`, using the API key
+the site gives every visitor) and gets a CloudFront-signed HLS manifest, valid for
+about four hours. The variant playlists and segments it lists are relative and
+unsigned, so a resolver flagged `carryQuery` makes hls.js append the manifest's
+signature to every request on that host. No DRM. Safari's native HLS can't add
+the signature, so the variants there return `403`.
+
 **Public IPTV URLs rot, and they also drop the odd request.** A probe of all
 65 at the time of writing found **13 already gone** — Ant1 on `403` (see above),
 both ERT
