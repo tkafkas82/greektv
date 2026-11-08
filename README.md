@@ -63,7 +63,7 @@ fullscreen, `Space` pauses, `L` (or the `● LIVE` pill) jumps back to the live 
 Chromecast is on the network, in Chrome, Edge or Android) sends the channel to
 the TV's Default Media Receiver; zapping follows on the TV and the picture here
 stays as a muted preview. Only plain `https` streams cast: embedded pages,
-Mega's Vindral player and signed streams (ΣΠΟΡ FM TV 1) stay on this screen, and
+Mega's Vindral player and signed streams (ΣΠΟΡ FM TV 1/2) stay on this screen, and
 so do relay-only streams when the relay is on localhost. The docked corner
 window has its own `‹ ›` and answers `[`/`]`, digits, `M`, `P` while the grid is
 browsed. The browser's own picture-in-picture window and hardware media keys
@@ -172,7 +172,7 @@ tvopen.gr embed player reads, so nothing here decrypts anyone else’s bundle.
 Because that URL rotates, the catalogue entry is only a fallback and the live one
 is fetched at play time — see [`GET /api/resolve`](#get-apiresolve).
 
-**ΣΠΟΡ FM TV 1** works the same way. sportfmtv.gr's player opens an anonymous
+**ΣΠΟΡ FM TV 1** and **2** work the same way. sportfmtv.gr's player opens an anonymous
 session with a public AppSync mutation (`startPublicPlayback`, using the API key
 the site gives every visitor) and gets a CloudFront-signed HLS manifest, valid for
 about four hours. The variant playlists and segments it lists are relative and

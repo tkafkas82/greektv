@@ -66,6 +66,8 @@ const PINNED = {
   // og:image on sportfmtv.gr's channel page.
   "sport-fm-tv-1":
     "https://contentful-assets.yinzcam.com/images/4jepypi6v8wj/media_1xos3h0/c928134e3557f1776d8b32cffee3e181/1790853550217-SportFM_TV1_logo_1024.jpg?clxf=t_general_medium",
+  "sport-fm-tv-2":
+    "https://contentful-assets.yinzcam.com/images/4jepypi6v8wj/media_1r5k8b1/196361a19759c906aac64c43142fc8b4/1790853579296-SportFM_TV2_logo_1024.jpg?clxf=t_general_medium",
 
   // European stations. Where the station has a Wikipedia article, its logo is
   // the Commons file that article uses, as the 330px PNG render - the stations'

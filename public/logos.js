@@ -260,6 +260,7 @@ export const LOGOS = {
   "best-radio": "beacb687958a453286a9bc7d07333915.svg",
   "sport-fm": "logo-normal-v3.png",
   "sport-fm-tv-1": "sportfm-tv1.webp",
+  "sport-fm-tv-2": "sportfm-tv2.webp",
   "tennis-channel": "tennis-channel.png",
   "rne-radio-3": "330px-rne-radio-3-2026-svg.png",
   "radar-lisboa": "icone-teste-1.png",

@@ -13,6 +13,26 @@
 // here also covered by a stream URL in the catalogue, so the relay will carry it
 // (see ALLOWED_HOSTS in api/stream.js).
 
+// A sportfmtv.gr linear channel (see the note on 836 in RESOLVERS).
+function sportFm(name, contentId) {
+  return {
+    name,
+    endpoint: "https://vh33zrthcffldaeiaea5snvuem.appsync-api.eu-central-1.amazonaws.com/graphql",
+    request: {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-api-key": "da2-ida73mk7drfhzi67dyh76odb6a" },
+      body: JSON.stringify({
+        query:
+          "mutation($t:String!,$c:String!){startPublicPlayback(tenant_id:$t,content_id:$c,platform:\"web\"){hls_signed_url}}",
+        variables: { t: "VENUE_PAO", c: contentId },
+      }),
+    },
+    hosts: ["d1uuspfe6udary.cloudfront.net"],
+    carryQuery: true,
+    pick: (data) => data?.data?.startPublicPlayback?.hls_signed_url || null,
+  };
+}
+
 export const RESOLVERS = {
   // Open Beyond. iptv-org carries other channels on Open's CDN but not this one;
   // tvopen.gr's embed player (/OpenTVLive) reads this JSON and plays `stream`.
@@ -23,27 +43,13 @@ export const RESOLVERS = {
     pick: (data) => data.stream || data.lowstream || null,
   },
 
-  // ΣΠΟΡ FM TV 1. sportfmtv.gr's player starts an anonymous session with this
-  // public AppSync mutation (the API key is the one the site ships to every
+  // ΣΠΟΡ FM TV 1 and 2 (sportFm above). sportfmtv.gr's player starts an
+  // anonymous session with a public AppSync mutation (the API key is the one the site ships to every
   // visitor) and gets a CloudFront-signed manifest, valid for about four hours.
   // The variant playlists and segments it lists are relative and unsigned, so
   // `carryQuery` has the player add the signature to every request on `hosts`.
-  836: {
-    name: "ΣΠΟΡ FM TV 1",
-    endpoint: "https://vh33zrthcffldaeiaea5snvuem.appsync-api.eu-central-1.amazonaws.com/graphql",
-    request: {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-api-key": "da2-ida73mk7drfhzi67dyh76odb6a" },
-      body: JSON.stringify({
-        query:
-          "mutation($t:String!,$c:String!){startPublicPlayback(tenant_id:$t,content_id:$c,platform:\"web\"){hls_signed_url}}",
-        variables: { t: "VENUE_PAO", c: "6649e847-98ff-425e-b3c7-22e998b41d79" },
-      }),
-    },
-    hosts: ["d1uuspfe6udary.cloudfront.net"],
-    carryQuery: true,
-    pick: (data) => data?.data?.startPublicPlayback?.hls_signed_url || null,
-  },
+  836: sportFm("ΣΠΟΡ FM TV 1", "6649e847-98ff-425e-b3c7-22e998b41d79"),
+  840: sportFm("ΣΠΟΡ FM TV 2", "2a05abde-b35b-4334-8eb8-f55e14880306"),
 };
 
 /**
