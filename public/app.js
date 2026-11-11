@@ -1581,7 +1581,10 @@ async function castableUrl(ch) {
   return url.href;
 }
 
-const castSession = () => (castCtx ? castCtx.getCurrentSession() : null);
+// The SDK still hands out the old session while it reports SESSION_ENDED, so
+// the cast state decides whether one is live.
+const castSession = () =>
+  castCtx && castCtx.getCastState() === cast.framework.CastState.CONNECTED ? castCtx.getCurrentSession() : null;
 
 function paintCast() {
   const state = castCtx ? castCtx.getCastState() : null;
