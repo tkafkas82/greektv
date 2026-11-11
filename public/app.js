@@ -549,9 +549,17 @@ function teardown() {
   radioStage.hidden = true;
 }
 
-function attach(url, { audio = false } = {}) {
+function attach(url, { audio = false, here = false } = {}) {
   teardown();
   castSrc = url;
+
+  // While casting, the TV plays it and this device stays quiet. castCurrent()
+  // falls back to here = true when the channel can't go to the TV.
+  if (!here && castSession() && castEligible(playing)) {
+    if (audio && !radio.paused) radio.pause();
+    castStoppedHere = true;
+    return;
+  }
 
   // Radio is a continuous Icecast stream, not a manifest - hls.js would reject
   // it outright. It also plays through its own element outside the overlay, so
@@ -1521,7 +1529,27 @@ document.getElementById("s-fs").addEventListener("click", toggleFullscreen);
    as a muted preview. */
 const castBtn = document.getElementById("p-cast");
 let castCtx = null;
-let castMutedHere = false;
+// True while the TV has the channel and nothing plays on this device.
+let castStoppedHere = false;
+
+/** Whether a channel can go to the TV at all, before any URL is worked out. */
+const castEligible = (ch) => Boolean(ch) && !ch.vindral && !signedQuery && (ch.audio || playsDirect(ch));
+
+/** Stop this device's picture and sound; the TV has them now. */
+function stopHere(ch, device) {
+  if (ch.audio) radio.pause();
+  else teardown();
+  castStoppedHere = true;
+  showNote(`Μετάδοση στο ${device}`, `Το ${ch.name} παίζει στην τηλεόραση.`);
+}
+
+/** Play the current channel on this device again, after a cast ends or fails. */
+function resumeHere() {
+  if (!castStoppedHere) return;
+  castStoppedHere = false;
+  hideNote();
+  if (playing && castSrc) attach(castSrc, { audio: playing.audio, here: true });
+}
 
 // What the page is actually playing: the direct URL or its relay path.
 let castSrc = null;
@@ -1582,6 +1610,7 @@ async function castCurrent() {
   const device = session.getCastDevice().friendlyName || "Chromecast";
   if (!url) {
     castNote(device, `Το ${playing.name} δεν μεταδίδεται· παίζει μόνο εδώ.`);
+    resumeHere();
     return;
   }
   const info = new chrome.cast.media.MediaInfo(url, playing.audio ? "audio/mpeg" : "application/x-mpegurl");
@@ -1598,15 +1627,13 @@ async function castCurrent() {
   session.loadMedia(req).then(
     () => {
       if (playing !== ch) return;
-      // The TV has the sound now; the picture here stays as a preview.
-      const el = ch.audio ? radio : video;
-      if (!el.muted) {
-        el.muted = true;
-        castMutedHere = true;
-      }
-      castNote(device, `Μετάδοση: ${ch.name}`);
+      stopHere(ch, device);
     },
-    () => castNote(device, `Η μετάδοση του ${ch.name} απέτυχε.`)
+    () => {
+      if (playing !== ch) return;
+      castNote(device, `Η μετάδοση του ${ch.name} απέτυχε.`);
+      resumeHere();
+    }
   );
 }
 
@@ -1625,11 +1652,7 @@ function initCast() {
   const S = cast.framework.SessionState;
   castCtx.addEventListener(cast.framework.CastContextEventType.SESSION_STATE_CHANGED, (e) => {
     if (e.sessionState === S.SESSION_STARTED || e.sessionState === S.SESSION_RESUMED) castCurrent();
-    if (e.sessionState === S.SESSION_ENDED && castMutedHere) {
-      video.muted = false;
-      radio.muted = false;
-      castMutedHere = false;
-    }
+    if (e.sessionState === S.SESSION_ENDED) resumeHere();
     paintCast();
   });
   castCtx.addEventListener(cast.framework.CastContextEventType.CAST_STATE_CHANGED, paintCast);
@@ -1898,6 +1921,7 @@ function closePlayer({ push = true, stop = false } = {}) {
   playing = null;
   playingUrl = null;
   castSrc = null;
+  castStoppedHere = false;
   hideNote();
   // teardown() left the radio running on purpose; the bar takes it from here.
   paintMiniBar();
