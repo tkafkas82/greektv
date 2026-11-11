@@ -1594,7 +1594,15 @@ function paintCast() {
   castBtn.classList.toggle("dim", state === cast.framework.CastState.NO_DEVICES_AVAILABLE);
   const on = Boolean(castSession());
   castBtn.setAttribute("aria-pressed", on ? "true" : "false");
-  castBtn.title = on ? "Διακοπή μετάδοσης" : "Μετάδοση σε Chromecast";
+  // A channel the TV can't play greys the button out up front. While casting
+  // it stays clickable so the cast can still be stopped.
+  const cannot = Boolean(playing) && !castEligible(playing);
+  castBtn.disabled = cannot && !on;
+  castBtn.classList.toggle("off", cannot);
+  const stop = on ? " · Διακοπή μετάδοσης" : "";
+  castBtn.title = cannot
+    ? `Το ${playing.name} δεν μεταδίδεται σε Chromecast${stop}`
+    : on ? "Διακοπή μετάδοσης" : "Μετάδοση σε Chromecast";
 }
 
 function castNote(title, text) {
@@ -1642,6 +1650,7 @@ async function castCurrent() {
 
 /** Keep the TV on the channel being watched; a no-op when not casting. */
 function castFollow() {
+  paintCast();
   if (castSession()) castCurrent();
 }
 

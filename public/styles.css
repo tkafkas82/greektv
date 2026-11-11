@@ -384,6 +384,7 @@ button{font:inherit; color:inherit}
 .sw:hover{background:var(--surface)}
 #p-cast[aria-pressed="true"]{color:var(--accent)}
 #p-cast.dim{opacity:.55}
+#p-cast.off{opacity:.35}
 .sw-group{
   padding:7px 7px 3px; font-size:10px; font-weight:600; letter-spacing:.09em;
   text-transform:uppercase; color:var(--muted);
