@@ -10,6 +10,7 @@
 import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
 import { extname, join, normalize, sep } from "node:path";
+import { networkInterfaces } from "node:os";
 import { fileURLToPath } from "node:url";
 
 import epgHandler from "./api/epg.js";
@@ -23,8 +24,22 @@ const PUBLIC_DIR = join(ROOT, "public");
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || undefined; // undefined = every interface
 
+/**
+ * GET /api/lan - this machine's address on the home network. A Chromecast
+ * fetches the stream itself, and "localhost" on the TV is the TV, so a cast
+ * from a page on localhost points the relay here instead. Local server only.
+ */
+function lanHandler(req, res) {
+  const ip = Object.values(networkInterfaces())
+    .flat()
+    .find((a) => a && a.family === "IPv4" && !a.internal)?.address;
+  res.writeHead(200, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+  res.end(JSON.stringify({ origin: ip ? `http://${ip}:${PORT}` : null }));
+}
+
 const ROUTES = {
   "/api/epg": epgHandler,
+  "/api/lan": lanHandler,
   "/api/nowplaying": nowPlayingHandler,
   "/api/resolve": resolveHandler,
   "/api/stream": streamHandler,

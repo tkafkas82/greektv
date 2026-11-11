@@ -551,6 +551,7 @@ function teardown() {
 
 function attach(url, { audio = false } = {}) {
   teardown();
+  castSrc = url;
 
   // Radio is a continuous Icecast stream, not a manifest - hls.js would reject
   // it outright. It also plays through its own element outside the overlay, so
@@ -1522,11 +1523,32 @@ const castBtn = document.getElementById("p-cast");
 let castCtx = null;
 let castMutedHere = false;
 
-function castableUrl(ch) {
-  if (!ch || !playingUrl || ch.vindral || signedQuery) return null;
+// What the page is actually playing: the direct URL or its relay path.
+let castSrc = null;
+// This machine's home-network origin when the page runs on localhost, so the
+// TV can reach the relay; null until asked, "" when there is none.
+let lanOrigin = null;
+const onLocalhost = /^(localhost|127\.|\[::1\])/.test(location.hostname);
+
+async function lanBase() {
+  if (lanOrigin === null) {
+    try {
+      lanOrigin = (await (await fetch("/api/lan")).json()).origin || "";
+    } catch {
+      lanOrigin = "";
+    }
+  }
+  return lanOrigin;
+}
+
+async function castableUrl(ch) {
+  if (!ch || !castSrc || ch.vindral || signedQuery) return null;
   if (!ch.audio && !playsDirect(ch)) return null;
-  const url = new URL(mustRelay(playingUrl) ? relayUrl(playingUrl) : playingUrl, location.href);
-  if (url.protocol !== "https:") return null;
+  // The receiver accepts plain http, so only a host the TV can't reach is out.
+  let base = location.href;
+  if (castSrc.startsWith("/") && onLocalhost) base = await lanBase();
+  if (!base) return null;
+  const url = new URL(castSrc, base);
   if (/^(localhost|127\.|\[::1\])/.test(url.hostname)) return null;
   return url.href;
 }
@@ -1535,7 +1557,10 @@ const castSession = () => (castCtx ? castCtx.getCurrentSession() : null);
 
 function paintCast() {
   const state = castCtx ? castCtx.getCastState() : null;
-  castBtn.hidden = !castCtx || state === cast.framework.CastState.NO_DEVICES_AVAILABLE;
+  // Shown whenever the SDK is up - also in the installed app, which has no
+  // browser toolbar. With no device found the click opens Chrome's own picker.
+  castBtn.hidden = !castCtx;
+  castBtn.classList.toggle("dim", state === cast.framework.CastState.NO_DEVICES_AVAILABLE);
   const on = Boolean(castSession());
   castBtn.setAttribute("aria-pressed", on ? "true" : "false");
   castBtn.title = on ? "Διακοπή μετάδοσης" : "Μετάδοση σε Chromecast";
@@ -1548,10 +1573,12 @@ function castNote(title, text) {
   flashOsd(2600);
 }
 
-function castCurrent() {
+async function castCurrent() {
   const session = castSession();
   if (!session || !playing) return;
-  const url = castableUrl(playing);
+  const asked = playing;
+  const url = await castableUrl(playing);
+  if (playing !== asked || castSession() !== session) return;
   const device = session.getCastDevice().friendlyName || "Chromecast";
   if (!url) {
     castNote(device, `Το ${playing.name} δεν μεταδίδεται· παίζει μόνο εδώ.`);
@@ -1870,6 +1897,7 @@ function closePlayer({ push = true, stop = false } = {}) {
   document.body.style.overflow = "";
   playing = null;
   playingUrl = null;
+  castSrc = null;
   hideNote();
   // teardown() left the radio running on purpose; the bar takes it from here.
   paintMiniBar();
