@@ -23,6 +23,7 @@ import { fileURLToPath } from "node:url";
 const REPO = "tkafkas82/greektv";
 const BRANCH = "main";
 const IS_WIN = process.platform === "win32";
+const IS_TERMUX = Boolean(process.env.TERMUX_VERSION) || (process.env.PREFIX || "").includes("com.termux");
 
 const HOME = process.env.GREEKTV_HOME || fileURLToPath(new URL(".", import.meta.url));
 const APP_DIR = join(HOME, "app");
@@ -122,7 +123,7 @@ function openBrowser(url) {
   if (noBrowser) return;
   const [bin, argv] = IS_WIN ? ["explorer.exe", [url]]
     : process.platform === "darwin" ? ["open", [url]]
-    : process.env.PREFIX?.includes("com.termux") ? ["termux-open-url", [url]]
+    : IS_TERMUX ? ["termux-open-url", [url]]
     : ["xdg-open", [url]];
   try { spawn(bin, argv, { detached: true, stdio: "ignore" }).on("error", () => say(`Open ${url} in a browser.`)).unref(); }
   catch { say(`Open ${url} in a browser.`); }
@@ -135,6 +136,7 @@ async function main() {
 
   if (cmd === "stop") {
     say((await stopServer(s.port)) ? `Stopped the server on port ${s.port}.` : "The server was not running.");
+    if (IS_TERMUX) { try { spawn("termux-wake-unlock", [], { stdio: "ignore" }).on("error", () => {}); } catch {} }
     return;
   }
   if (cmd === "status") {
@@ -182,6 +184,10 @@ async function main() {
   // 4. Start the server as its own process, so it outlives this window.
   if (!(await isOurs(s.port))) {
     say(`Starting the server on port ${s.port}...`);
+    // On Android the TV pulls a cast through the phone, so Termux must not
+    // doze with the screen off. termux-wake-lock keeps it awake (it shows as
+    // a notification; "greektv stop" or Termux's own button releases it).
+    if (IS_TERMUX) { try { spawn("termux-wake-lock", [], { stdio: "ignore", detached: true }).on("error", () => {}).unref(); } catch {} }
     const log = openSync(LOG_FILE, "w");
     const child = spawn(process.execPath, ["server.mjs"], {
       cwd: APP_DIR,
