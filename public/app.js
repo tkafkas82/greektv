@@ -1605,11 +1605,11 @@ function paintCast() {
     : on ? "Διακοπή μετάδοσης" : "Μετάδοση σε Chromecast";
 }
 
-function castNote(title, text) {
+function castNote(title, text, hold = 2600) {
   document.getElementById("osd-num").textContent = "";
   document.getElementById("osd-name").textContent = title;
   document.getElementById("osd-now").textContent = text;
-  flashOsd(2600);
+  flashOsd(hold);
 }
 
 async function castCurrent() {
@@ -1644,13 +1644,38 @@ async function castCurrent() {
     () => {
       if (playing !== ch) return;
       stopHere(ch, device);
+      watchReceiver(session, ch, device, url);
     },
-    () => {
+    (err) => {
       if (playing !== ch) return;
-      castNote(device, `Η μετάδοση του ${ch.name} απέτυχε.`);
+      castNote(device, `Η μετάδοση του ${ch.name} απέτυχε (${castErr(err)}).`, 7000);
       resumeHere();
     }
   );
+}
+
+const castErr = (err) => (err && (err.code || err.description)) || String(err || "άγνωστο σφάλμα");
+
+/**
+ * The receiver accepts a load before it has fetched a byte, so a TV that then
+ * can't reach the stream - most often the relay on this device's LAN address,
+ * blocked by Wi-Fi client isolation or a sleeping phone - just goes idle with
+ * an error while this device has already gone quiet. Say so and play here.
+ */
+function watchReceiver(session, ch, device, url) {
+  const media = session.getMediaSession && session.getMediaSession();
+  if (!media) return;
+  const { PlayerState, IdleReason } = chrome.cast.media;
+  const onUpdate = (alive) => {
+    if (!alive || playing !== ch) return media.removeUpdateListener(onUpdate);
+    if (media.playerState === PlayerState.IDLE && media.idleReason === IdleReason.ERROR) {
+      media.removeUpdateListener(onUpdate);
+      const host = new URL(url).host;
+      castNote(device, `Η τηλεόραση δεν μπόρεσε να φορτώσει το ${ch.name} από ${host}.`, 7000);
+      resumeHere();
+    }
+  };
+  media.addUpdateListener(onUpdate);
 }
 
 /** Keep the TV on the channel being watched; a no-op when not casting. */
@@ -1679,7 +1704,11 @@ function initCast() {
 castBtn.addEventListener("click", () => {
   if (!castCtx) return;
   if (castSession()) castCtx.endCurrentSession(true);
-  else castCtx.requestSession().catch(() => {});
+  // "cancel" is the viewer closing the device list; anything else is worth showing.
+  else castCtx.requestSession().catch((err) => {
+    const code = castErr(err);
+    if (code !== "cancel" && code !== chrome.cast.ErrorCode?.CANCEL) castNote("Chromecast", `Δεν συνδέθηκε (${code}).`, 7000);
+  });
 });
 if (window.__castAvailable) initCast();
 else window.addEventListener("cast-available", () => window.__castAvailable && initCast());
