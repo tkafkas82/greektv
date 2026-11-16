@@ -1583,11 +1583,21 @@ async function castableUrl(ch) {
 
 // The SDK still hands out the old session while it reports SESSION_ENDED, so
 // the cast state decides whether one is live.
-const castSession = () =>
-  castCtx && castCtx.getCastState() === cast.framework.CastState.CONNECTED ? castCtx.getCurrentSession() : null;
+const castSession = () => {
+  const s = castCtx && castCtx.getCurrentSession();
+  if (!s) return null;
+  // Not the cast state: it still reads CONNECTING when SESSION_STARTED fires,
+  // which made castCurrent() find no session and leave the TV on the Cast logo
+  // with nothing loaded. The session's own state also rules out the ended
+  // session the SDK keeps handing out for a while.
+  const S = cast.framework.SessionState;
+  const st = s.getSessionState();
+  return st === S.SESSION_STARTED || st === S.SESSION_RESUMED ? s : null;
+};
 
 function paintCast() {
-  const state = castCtx ? castCtx.getCastState() : null;
+  if (!castCtx) { castBtn.hidden = true; return; } // SDK not loaded (yet)
+  const state = castCtx.getCastState();
   // Shown whenever the SDK is up - also in the installed app, which has no
   // browser toolbar. With no device found the click opens Chrome's own picker.
   castBtn.hidden = !castCtx;
@@ -1612,40 +1622,6 @@ function castNote(title, text, hold = 2600) {
   flashOsd(hold);
 }
 
-/**
- * "ts" or "fmp4" for an HLS stream, from its first media playlist: fMP4 ones
- * carry an #EXT-X-MAP init segment, MPEG-TS ones do not. null when the
- * playlists can't be read. Fetched as the page plays it, then via the relay,
- * since many hosts send no CORS header.
- */
-const segFormatCache = new Map();
-async function hlsSegmentFormat(src) {
-  if (segFormatCache.has(src)) return segFormatCache.get(src);
-  const read = async (u) => {
-    for (const tryUrl of u.startsWith("/") ? [u] : [u, relayUrl(u)]) {
-      try {
-        const res = await fetch(tryUrl, { signal: AbortSignal.timeout(5000) });
-        if (res.ok) return { text: await res.text(), base: new URL(tryUrl, location.href).href };
-      } catch {}
-    }
-    return null;
-  };
-  let fmt = null;
-  try {
-    let pl = await read(src);
-    // A master playlist: follow its first variant.
-    if (pl && /#EXT-X-STREAM-INF/.test(pl.text)) {
-      const lines = pl.text.split(/\r?\n/);
-      const i = lines.findIndex((l) => l.startsWith("#EXT-X-STREAM-INF"));
-      const uri = lines.slice(i + 1).find((l) => l.trim() && !l.startsWith("#"));
-      pl = uri ? await read(new URL(uri.trim(), pl.base).href) : null;
-    }
-    if (pl && /#EXTINF/.test(pl.text)) fmt = /#EXT-X-MAP/.test(pl.text) ? "fmp4" : "ts";
-  } catch {}
-  segFormatCache.set(src, fmt);
-  return fmt;
-}
-
 async function castCurrent() {
   const session = castSession();
   if (!session || !playing) return;
@@ -1660,20 +1636,6 @@ async function castCurrent() {
   }
   const info = new chrome.cast.media.MediaInfo(url, playing.audio ? "audio/mpeg" : "application/x-mpegurl");
   info.streamType = chrome.cast.media.StreamType.LIVE;
-  if (!playing.audio) {
-    const fmt = await hlsSegmentFormat(castSrc);
-    if (playing !== asked || castSession() !== session) return;
-    // Without these the receiver assumes fMP4 segments and, handed MPEG-TS
-    // ones (Alpha and most Greek channels), sits on the Cast logo forever.
-    const M = chrome.cast.media;
-    if (fmt === "ts") {
-      info.hlsSegmentFormat = M.HlsSegmentFormat.TS;
-      info.hlsVideoSegmentFormat = M.HlsVideoSegmentFormat.MPEG2_TS;
-    } else if (fmt === "fmp4") {
-      info.hlsSegmentFormat = M.HlsSegmentFormat.FMP4;
-      info.hlsVideoSegmentFormat = M.HlsVideoSegmentFormat.FMP4;
-    }
-  }
   const meta = new chrome.cast.media.GenericMediaMetadata();
   meta.title = playing.name;
   const entry = guide.get(playing.id);
