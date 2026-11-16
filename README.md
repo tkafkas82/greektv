@@ -22,6 +22,11 @@ deployment. Nothing to install — there is no `node_modules`.
 
 ## Install it on another computer or phone
 
+**Start here: <https://tkafkas82.github.io/greektv/>** — it detects the
+visitor's platform and shows the steps below for it, with copy buttons, and an
+"already installed? open it" button that finds a running local server. It is
+`docs/index.html`, served by GitHub Pages from `main:/docs`.
+
 One line sets everything up: it uses Node 18+ if present or downloads a
 private copy of the current Node LTS (no admin rights, nothing system-wide),
 downloads this repo, starts the server, opens the browser and leaves a

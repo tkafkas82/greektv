@@ -155,7 +155,7 @@ footer{margin-top:28px; font-size:12.5px; color:var(--muted); text-align:center}
     <span class="pill" id="status-pill" hidden><i></i><span></span></span>
     <button class="btn primary" id="open-btn" type="button">Άνοιγμα</button>
   </div>
-  <p class="note" id="status-note" hidden></p>
+  <p class="note" id="status-note">Ο browser μπορεί να ζητήσει άδεια για «συσκευές στο τοπικό δίκτυο» — επιτρέψτε την, αλλιώς ο έλεγχος δεν βλέπει τον διακομιστή.</p>
 </section>
 
 <section class="card" aria-labelledby="h-install">
@@ -399,13 +399,15 @@ footer{margin-top:28px; font-size:12.5px; color:var(--muted); text-align:center}
       location.href = `http://localhost:${port}/`;
       return;
     }
-    setPill("no", "Δεν τρέχει");
-    statusText.textContent = detected === "android"
-      ? "Ανοίξτε το Termux και γράψτε greektv — ή εγκαταστήστε το παρακάτω."
-      : "Ανοίξτε το εικονίδιο «Greek TV» — ή, αν δεν το έχετε, εγκαταστήστε το παρακάτω.";
-    note.hidden = false;
-    note.innerHTML = 'Αν ο browser ρώτησε για πρόσβαση στο τοπικό δίκτυο και την αρνηθήκατε, ο έλεγχος δεν βλέπει τον διακομιστή — '
-      + 'δοκιμάστε κατευθείαν το <a href="http://localhost:3000/">http://localhost:3000</a>.';
+    // A refusal looks the same whether nothing listens or the browser blocked
+    // the check (Local Network Access, Safari's mixed-content rules), so don't
+    // claim "not running" - offer the direct link as well.
+    setPill("no", "Δεν βρέθηκε");
+    statusText.innerHTML = (detected === "android"
+      ? "Αν το έχετε εγκαταστήσει, ανοίξτε το Termux και γράψτε <code>greektv</code>. "
+      : "Αν το έχετε εγκαταστήσει, ανοίξτε το εικονίδιο «Greek TV». ")
+      + 'Ή δοκιμάστε κατευθείαν: <a href="http://localhost:3000/">http://localhost:3000</a>. Αλλιώς, εγκαταστήστε το παρακάτω.';
+    note.textContent = "Αν ο browser ρώτησε για το τοπικό δίκτυο και την αρνηθήκατε, ο έλεγχος δεν μπορεί να δει τον διακομιστή, ακόμη κι αν τρέχει.";
     document.getElementById("h-install").scrollIntoView({ behavior: "smooth", block: "start" });
   });
 })();
