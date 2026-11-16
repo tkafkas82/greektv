@@ -1630,7 +1630,12 @@ async function castCurrent() {
   meta.title = playing.name;
   const entry = guide.get(playing.id);
   meta.subtitle = entry && entry.now ? entry.now.title : CATEGORIES[playing.cat].label;
-  if (playing.logo) meta.images = [new chrome.cast.Image(new URL(playing.logo.url, location.href).href)];
+  // Same story as the stream: "localhost" on the TV is the TV, so a local
+  // logo has to come from this machine's home-network address.
+  if (playing.logo) {
+    const logoBase = onLocalhost && playing.logo.url.startsWith("/") ? await lanBase() : location.href;
+    if (logoBase) meta.images = [new chrome.cast.Image(new URL(playing.logo.url, logoBase).href)];
+  }
   info.metadata = meta;
   const req = new chrome.cast.media.LoadRequest(info);
   req.autoplay = true;

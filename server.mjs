@@ -11,6 +11,7 @@ import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
 import { extname, join, normalize, sep } from "node:path";
 import { networkInterfaces } from "node:os";
+import { createSocket } from "node:dgram";
 import { fileURLToPath } from "node:url";
 
 import epgHandler from "./api/epg.js";
@@ -34,18 +35,50 @@ const HOST = process.env.HOST || undefined; // undefined = every interface
 // can't reach, so they only count when nothing else exists.
 const VIRTUAL_IF = /vethernet|wsl|hyper-v|virtualbox|vmware|vbox|docker|br-|veth|utun|tun|tap|zerotier|tailscale|wireguard|vpn/i;
 
-function lanIp() {
-  const candidates = Object.entries(networkInterfaces())
+function interfaceIp() {
+  let ifaces;
+  try {
+    ifaces = networkInterfaces();
+  } catch {
+    return null; // Android 11+ (Termux): listing interfaces is denied (EACCES)
+  }
+  const candidates = Object.entries(ifaces)
     .flatMap(([name, addrs]) => (addrs || []).map((a) => ({ name, ...a })))
     .filter((a) => a.family === "IPv4" && !a.internal && !a.address.startsWith("169.254."));
   const score = (a) =>
     (VIRTUAL_IF.test(a.name) ? 0 : 4) +
     (a.address.startsWith("192.168.") ? 2 : a.address.startsWith("10.") ? 1 : 0);
-  return candidates.sort((x, y) => score(y) - score(x))[0]?.address;
+  return candidates.sort((x, y) => score(y) - score(x))[0]?.address || null;
 }
 
-function lanHandler(req, res) {
-  const ip = lanIp();
+/**
+ * The address the OS would send from to reach the internet. "Connecting" a
+ * UDP socket only picks a route - no packet leaves - so this works where the
+ * interface list is off limits, as on Android. Second choice only, because on
+ * a PC with a VPN up the default route is the tunnel.
+ */
+function routeIp() {
+  return new Promise((resolve) => {
+    const sock = createSocket("udp4");
+    const done = (ip) => { try { sock.close(); } catch {} resolve(ip); };
+    sock.once("error", () => done(null));
+    sock.connect(53, "8.8.8.8", () => {
+      try {
+        const { address } = sock.address();
+        done(address && address !== "0.0.0.0" && !address.startsWith("127.") ? address : null);
+      } catch {
+        done(null);
+      }
+    });
+  });
+}
+
+async function lanIp() {
+  return interfaceIp() || (await routeIp());
+}
+
+async function lanHandler(req, res) {
+  const ip = await lanIp();
   res.writeHead(200, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
   res.end(JSON.stringify({ origin: ip ? `http://${ip}:${PORT}` : null }));
 }
