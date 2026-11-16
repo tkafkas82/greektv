@@ -29,10 +29,23 @@ const HOST = process.env.HOST || undefined; // undefined = every interface
  * fetches the stream itself, and "localhost" on the TV is the TV, so a cast
  * from a page on localhost points the relay here instead. Local server only.
  */
+// Adapters that are never the home network: WSL / Hyper-V / Docker / VM
+// bridges and VPN tunnels. Picking one of those hands the TV an address it
+// can't reach, so they only count when nothing else exists.
+const VIRTUAL_IF = /vethernet|wsl|hyper-v|virtualbox|vmware|vbox|docker|br-|veth|utun|tun|tap|zerotier|tailscale|wireguard|vpn/i;
+
+function lanIp() {
+  const candidates = Object.entries(networkInterfaces())
+    .flatMap(([name, addrs]) => (addrs || []).map((a) => ({ name, ...a })))
+    .filter((a) => a.family === "IPv4" && !a.internal && !a.address.startsWith("169.254."));
+  const score = (a) =>
+    (VIRTUAL_IF.test(a.name) ? 0 : 4) +
+    (a.address.startsWith("192.168.") ? 2 : a.address.startsWith("10.") ? 1 : 0);
+  return candidates.sort((x, y) => score(y) - score(x))[0]?.address;
+}
+
 function lanHandler(req, res) {
-  const ip = Object.values(networkInterfaces())
-    .flat()
-    .find((a) => a && a.family === "IPv4" && !a.internal)?.address;
+  const ip = lanIp();
   res.writeHead(200, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
   res.end(JSON.stringify({ origin: ip ? `http://${ip}:${PORT}` : null }));
 }

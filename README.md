@@ -20,6 +20,36 @@ PORT=8080 npm start
 same handler modules Vercel runs in production, so local behaviour matches the
 deployment. Nothing to install — there is no `node_modules`.
 
+## Install it on another computer or phone
+
+One line sets everything up: it uses Node 18+ if present or downloads a
+private copy of the current Node LTS (no admin rights, nothing system-wide),
+downloads this repo, starts the server, opens the browser and leaves a
+launcher. The launcher checks whether the server is already running, starts it
+if not, and refreshes the app whenever `main` has a newer commit.
+
+| Device | Run once | Then |
+|---|---|---|
+| **Windows** | PowerShell: `irm https://raw.githubusercontent.com/tkafkas82/greektv/main/install/install-windows.ps1 \| iex` — or double-click `install/Install-GreekTV.bat` | **Greek TV** on the desktop / Start menu; **Greek TV - Stop** stops it |
+| **macOS** | Terminal: `curl -fsSL https://raw.githubusercontent.com/tkafkas82/greektv/main/install/install.sh \| bash` — or `install/GreekTV-Mac.command` (right-click → Open the first time) | **Greek TV** in `~/Applications` (Spotlight) |
+| **Linux** | same `curl … install.sh \| bash` line | **Greek TV** in the applications menu |
+| **Android** | Install [Termux](https://f-droid.org/packages/com.termux/) from F-Droid, then `pkg install -y curl && curl -fsSL https://raw.githubusercontent.com/tkafkas82/greektv/main/install/install.sh \| bash` | Termux:Widget home-screen button **Greek TV** |
+
+Everywhere there is also a `greektv start | stop | update | status` command
+(`node %LOCALAPPDATA%\GreekTV\greektv-launcher.mjs …` on Windows). Files go to
+`%LOCALAPPDATA%\GreekTV` or `~/.greektv`; remove them with
+`install-windows.ps1 -Uninstall` / `install.sh uninstall`.
+
+A phone or TV on the same Wi-Fi needs none of this: open the
+“Phone / TV on the same Wi-Fi” address the launcher prints on the computer.
+
+The Windows side is shaped by behaviour-based antivirus. Bitdefender’s
+Advanced Threat Defense quarantined a first version that ran PowerShell hidden
+with `-ExecutionPolicy Bypass` and added itself to Windows startup — the
+textbook malware pattern. So the setup script runs once in a visible window,
+the shortcuts start `node.exe` directly (no PowerShell), and nothing goes into
+startup.
+
 ## Deploy it
 
 ```bash
